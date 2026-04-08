@@ -90,6 +90,9 @@ jobs:
         env:
           PSN_NPSSO: ${{ secrets.PSN_NPSSO }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_DEVICE: ${{ secrets.PUSHOVER_DEVICE }}
         run: |
           node scripts/cloud-scan-shard.js \
             --shard-name "${{ matrix.shard.name }}" \

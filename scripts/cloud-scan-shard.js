@@ -109,6 +109,68 @@ function readRefreshTokenFromEnv() {
   return String(process.env.PSN_REFRESH_TOKEN || process.env.REFRESH_TOKEN || "").trim();
 }
 
+function readPushoverConfig() {
+  return {
+    userKey: String(process.env.PUSHOVER_USER_KEY || "").trim(),
+    appToken: String(process.env.PUSHOVER_APP_TOKEN || "").trim(),
+    device: String(process.env.PUSHOVER_DEVICE || "").trim(),
+  };
+}
+
+async function sendPushoverNotification(title, message) {
+  const config = readPushoverConfig();
+  if (!config.userKey || !config.appToken) {
+    return false;
+  }
+
+  const body = new URLSearchParams({
+    token: config.appToken,
+    user: config.userKey,
+    title,
+    message,
+    priority: "0",
+  });
+
+  if (config.device) {
+    body.set("device", config.device);
+  }
+
+  const response = await fetch("https://api.pushover.net/1/messages.json", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pushover failed: ${response.status} ${await response.text()}`);
+  }
+
+  return true;
+}
+
+async function notifyValid(options, payload) {
+  try {
+    const sent = await sendPushoverNotification(
+      "Cloud Worker Valid NPWR",
+      [
+        `${options.shardName} found a valid trophy list.`,
+        payload.npCommunicationId,
+        payload.titleName || "Unknown title",
+        payload.titlePlatform || "Unknown platform",
+        payload.npServiceName || "unknown service",
+      ].join(" | ")
+    );
+
+    if (sent) {
+      console.log(`[notify]  valid sent for ${options.shardName} ${payload.npCommunicationId}`);
+    }
+  } catch (error) {
+    console.warn(`[notify]  pushover failed for ${options.shardName}: ${error.message}`);
+  }
+}
+
 function writeAuthState() {
   if (!authStateFile || !authCache) {
     return;
@@ -401,6 +463,7 @@ async function main() {
 
     if (result.status === "valid") {
       progress.validCount += 1;
+      await notifyValid(options, result.payload);
       console.log(`[valid]   ${npCommunicationId} ${result.payload.titleName || ""}`.trim());
     } else if (result.status === "invalid") {
       progress.invalidCount += 1;
