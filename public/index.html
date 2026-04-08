@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NPWR Scan Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__top">
+        <div class="container site-header__row">
+          <a class="brand" href="/">NPWR Scan Dashboard</a>
+          <div class="topbar-meta">
+            <span id="scan-status-pill" class="status-pill">Waiting For Scan Data</span>
+            <span id="last-refresh" class="subtle-text">No refresh yet</span>
+          </div>
+        </div>
+      </div>
+      <div class="site-header__nav">
+        <div class="container nav-links">
+          <a href="/">Newest Trophy Lists</a>
+          <a href="#selected-title">Selected Title</a>
+          <a href="#trophy-list">Trophies</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="container page-shell">
+      <section class="hero-strip">
+        <div class="hero-strip__copy">
+          <p class="eyebrow">Live Scan Feed</p>
+          <h1>New Trophy Lists</h1>
+          <form id="player-import-form" class="player-import-form">
+            <input
+              id="player-import-input"
+              class="table-filter player-import-form__input"
+              type="search"
+              placeholder="Search PSN ID to import missing titles..."
+              autocomplete="off"
+            />
+            <button id="player-import-button" class="player-import-form__button" type="submit">
+              Import Player
+            </button>
+          </form>
+          <p id="player-import-status" class="player-import-status">
+            Search a player to pull in any trophy lists your local database does not have yet.
+          </p>
+        </div>
+        <div class="hero-strip__stats">
+          <article class="hero-stat">
+            <span class="hero-stat__label">Saved Lists</span>
+            <strong id="saved-count">0</strong>
+          </article>
+          <article class="hero-stat">
+            <span class="hero-stat__label">Last NPWR</span>
+            <strong id="last-npwr">None</strong>
+          </article>
+          <article class="hero-stat">
+            <span class="hero-stat__label">% Complete</span>
+            <strong id="scan-range">0%</strong>
+          </article>
+          <article class="hero-stat">
+            <span class="hero-stat__label">Estimated Time Left</span>
+            <strong id="eta-remaining">Unknown</strong>
+          </article>
+        </div>
+      </section>
+
+      <main class="layout">
+        <section class="content">
+          <section class="panel">
+            <div class="panel__heading">
+              <div class="panel__title">Newest Trophy Lists</div>
+              <div class="catalog-filters">
+                <input
+                  id="title-filter"
+                  class="table-filter"
+                  type="search"
+                  placeholder="Filter saved titles..."
+                />
+                <select id="region-filter" class="table-filter catalog-region-filter">
+                  <option value="all">All Regions</option>
+                  <option value="Unknown">Unknown</option>
+                </select>
+              </div>
+            </div>
+            <div id="catalog-grid" class="catalog-grid"></div>
+          </section>
+        </section>
+
+        <aside class="sidebar">
+          <section id="selected-title" class="panel">
+            <div class="panel__title">Selected Title</div>
+            <div id="selected-card" class="selected-card empty-state">
+              Choose a trophy list from the left to inspect its saved trophies.
+            </div>
+          </section>
+
+          <section id="trophy-list" class="panel">
+            <div class="panel__title">Trophies</div>
+            <div id="trophy-groups" class="group-list"></div>
+            <div id="trophy-listing" class="trophy-list"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

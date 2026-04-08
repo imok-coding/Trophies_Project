@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PSNP+ Issue Catalog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__top">
+        <div class="container site-header__row">
+          <a class="brand" href="/psnp-plus.html">PSNP+ Issue Catalog</a>
+          <div class="topbar-meta">
+            <span id="psnp-version" class="status-pill">Loading Dataset</span>
+            <a class="subtle-link" href="/">Back To NPWR Scan</a>
+          </div>
+        </div>
+      </div>
+      <div class="site-header__nav">
+        <div class="container nav-links">
+          <a href="/psnp-plus.html">All Games</a>
+          <a href="#psnp-list">Cards</a>
+          <a href="https://psnp-plus.huskycode.dev/list.json" target="_blank" rel="noreferrer">Raw JSON</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="container page-shell">
+      <section class="hero-strip">
+        <div class="hero-strip__copy">
+          <p class="eyebrow">Community Dataset</p>
+          <h1>Unobtainable and broken trophy lists in a cleaner browser.</h1>
+          <p>
+            This page reads from <code>psnp-plus.huskycode.dev/list.json</code> and turns the raw
+            dataset into a searchable, filterable catalog.
+          </p>
+        </div>
+        <div class="hero-strip__stats">
+          <article class="hero-stat">
+            <span class="hero-stat__label">Total Entries</span>
+            <strong id="psnp-total">0</strong>
+          </article>
+          <article class="hero-stat">
+            <span class="hero-stat__label">Visible</span>
+            <strong id="psnp-visible">0</strong>
+          </article>
+          <article class="hero-stat">
+            <span class="hero-stat__label">Last Update</span>
+            <strong id="psnp-last-update">Unknown</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__heading">
+          <div class="panel__title">Filters</div>
+          <div class="psnp-filters">
+            <input id="psnp-search" class="table-filter" type="search" placeholder="Search title, note, submitter..." />
+            <select id="psnp-platform" class="table-filter psnp-select">
+              <option value="">All Platforms</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section id="psnp-list" class="psnp-grid"></section>
+    </div>
+
+    <script src="/psnp-plus.js" defer></script>
+  </body>
+</html>

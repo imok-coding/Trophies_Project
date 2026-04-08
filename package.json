@@ -1,0 +1,21 @@
+{
+  "name": "psn-profiles-clone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PSN Profiles-inspired dashboard powered by psn-api",
+  "main": "server.js",
+  "scripts": {
+    "assets:download": "node scripts/download-assets.js",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "scan:npwr": "node scripts/scan-npwr.js",
+    "scan:npwr:reverse": "node scripts/scan-npwr.js --reverse --start 99999 --end 0",
+    "scan:retry-failed": "node scripts/scan-npwr.js --retry-failed",
+    "scan:status": "node scripts/scan-status.js",
+    "scan:cloud:shard": "node scripts/cloud-scan-shard.js",
+    "receive:cloud": "node scripts/receive-worker-results.js"
+  },
+  "dependencies": {
+    "psn-api": "^2.18.0"
+  }
+}

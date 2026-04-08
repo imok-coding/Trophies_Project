@@ -1,0 +1,57 @@
+name: NPWR Cloud Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      shards_json:
+        description: 'JSON array of shard objects: [{"name":"a","start":0,"end":9999}]'
+        required: true
+        default: '[{"name":"shard-0","start":0,"end":9999},{"name":"shard-1","start":10000,"end":19999}]'
+      delay_ms:
+        description: 'Delay between NPWR requests per worker'
+        required: true
+        default: '1200'
+      retries:
+        description: 'Retries per NPWR on worker'
+        required: true
+        default: '3'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(inputs.shards_json) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scan shard
+        env:
+          PSN_NPSSO: ${{ secrets.PSN_NPSSO }}
+        run: |
+          node scripts/cloud-scan-shard.js \
+            --shard-name "${{ matrix.shard.name }}" \
+            --start ${{ matrix.shard.start }} \
+            --end ${{ matrix.shard.end }} \
+            --delay-ms ${{ inputs.delay_ms }} \
+            --retries ${{ inputs.retries }} \
+            --output-dir "worker-output/${{ matrix.shard.name }}"
+
+      - name: Upload shard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npwr-${{ matrix.shard.name }}
+          path: worker-output/${{ matrix.shard.name }}
+          if-no-files-found: error
