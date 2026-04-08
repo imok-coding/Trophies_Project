@@ -13,6 +13,7 @@ const OUTPUT_ROOT = path.join(ROOT_DIR, "worker-output");
 
 let authCache = null;
 let authPromise = null;
+let authStateFile = "";
 
 function parseArgs(argv) {
   const options = {
@@ -101,10 +102,43 @@ function formatNpwr(index) {
 
 function readNpssoFromEnv() {
   const npsso = process.env.PSN_NPSSO || process.env.NPSSO || "";
-  if (!npsso) {
-    throw new Error("Missing PSN_NPSSO secret/environment variable.");
+  return String(npsso || "").trim();
+}
+
+function readRefreshTokenFromEnv() {
+  return String(process.env.PSN_REFRESH_TOKEN || process.env.REFRESH_TOKEN || "").trim();
+}
+
+function writeAuthState() {
+  if (!authStateFile || !authCache) {
+    return;
   }
-  return npsso.trim();
+
+  fs.writeFileSync(
+    authStateFile,
+    JSON.stringify(
+      {
+        accessToken: authCache.accessToken,
+        refreshToken: authCache.refreshToken,
+        expiresAt: authCache.expiresAt,
+        refreshTokenExpiresAt: authCache.refreshTokenExpiresAt,
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    )
+  );
+}
+
+function updateAuthCache(tokens) {
+  authCache = {
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    expiresAt: Date.now() + tokens.expiresIn * 1000,
+    refreshTokenExpiresAt: Date.now() + tokens.refreshTokenExpiresIn * 1000,
+  };
+  writeAuthState();
+  return { accessToken: authCache.accessToken };
 }
 
 function isResourceNotFound(resultOrError) {
@@ -151,7 +185,12 @@ function isAuthError(error) {
 }
 
 async function fetchFreshAuthTokens() {
-  const accessCode = await exchangeNpssoForAccessCode(readNpssoFromEnv());
+  const npsso = readNpssoFromEnv();
+  if (!npsso) {
+    throw new Error("Missing PSN_NPSSO secret/environment variable.");
+  }
+
+  const accessCode = await exchangeNpssoForAccessCode(npsso);
   return exchangeAccessCodeForAuthTokens(accessCode);
 }
 
@@ -166,29 +205,19 @@ async function getAuthorization() {
   }
 
   authPromise = (async () => {
-    if (authCache && authCache.refreshTokenExpiresAt - now > 5 * 60 * 1000) {
+    const refreshToken = authCache?.refreshToken || readRefreshTokenFromEnv();
+
+    if (refreshToken) {
       try {
-        const tokens = await exchangeRefreshTokenForAuthTokens(authCache.refreshToken);
-        authCache = {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          expiresAt: Date.now() + tokens.expiresIn * 1000,
-          refreshTokenExpiresAt: Date.now() + tokens.refreshTokenExpiresIn * 1000,
-        };
-        return { accessToken: authCache.accessToken };
+        const tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
+        return updateAuthCache(tokens);
       } catch {
         // Fall through to NPSSO.
       }
     }
 
     const tokens = await fetchFreshAuthTokens();
-    authCache = {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresAt: Date.now() + tokens.expiresIn * 1000,
-      refreshTokenExpiresAt: Date.now() + tokens.refreshTokenExpiresIn * 1000,
-    };
-    return { accessToken: authCache.accessToken };
+    return updateAuthCache(tokens);
   })();
 
   try {
@@ -199,15 +228,12 @@ async function getAuthorization() {
 }
 
 async function recoverAuthorization() {
-  if (authCache?.refreshToken) {
+  const refreshToken = authCache?.refreshToken || readRefreshTokenFromEnv();
+
+  if (refreshToken) {
     try {
-      const tokens = await exchangeRefreshTokenForAuthTokens(authCache.refreshToken);
-      authCache = {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresAt: Date.now() + tokens.expiresIn * 1000,
-        refreshTokenExpiresAt: Date.now() + tokens.refreshTokenExpiresIn * 1000,
-      };
+      const tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
+      updateAuthCache(tokens);
       return true;
     } catch {
       // Fall back to NPSSO.
@@ -215,12 +241,7 @@ async function recoverAuthorization() {
   }
 
   const tokens = await fetchFreshAuthTokens();
-  authCache = {
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    expiresAt: Date.now() + tokens.expiresIn * 1000,
-    refreshTokenExpiresAt: Date.now() + tokens.refreshTokenExpiresIn * 1000,
-  };
+  updateAuthCache(tokens);
   return true;
 }
 
@@ -345,7 +366,10 @@ async function main() {
     invalidFile: path.join(options.outputDir, "index", "invalid.jsonl"),
     errorFile: path.join(options.outputDir, "index", "errors.jsonl"),
     summaryFile: path.join(options.outputDir, "summary.json"),
+    authStateFile: path.join(options.outputDir, "auth-state.json"),
   };
+
+  authStateFile = paths.authStateFile;
 
   const progress = {
     shardName: options.shardName,

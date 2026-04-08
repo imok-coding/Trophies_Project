@@ -16,6 +16,8 @@ const scanRangeEl = document.getElementById("scan-range");
 const etaRemainingEl = document.getElementById("eta-remaining");
 const scanStatusPillEl = document.getElementById("scan-status-pill");
 const lastRefreshEl = document.getElementById("last-refresh");
+const cloudShardsEl = document.getElementById("cloud-shards");
+const cloudRunMetaEl = document.getElementById("cloud-run-meta");
 
 let catalog = [];
 let currentTitleId = "";
@@ -56,6 +58,50 @@ function formatDuration(ms) {
 
   return parts.join(" ");
 }
+function renderCloudShards(payload) {
+  if (!payload || !Array.isArray(payload.shards) || !payload.shards.length) {
+    cloudShardsEl.className = "cloud-shards empty-state";
+    cloudShardsEl.textContent = "No shard jobs found yet for the latest cloud run.";
+    cloudRunMetaEl.textContent = payload?.run
+      ? `Run #${payload.run.runNumber || payload.run.id} • ${payload.run.status}`
+      : "No cloud run data yet";
+    return;
+  }
+
+  cloudRunMetaEl.textContent = `Run #${payload.run?.runNumber || payload.run?.id || "?"} • ${payload.run?.status || "unknown"}${payload.run?.conclusion ? ` / ${payload.run.conclusion}` : ""}`;
+  cloudShardsEl.className = "cloud-shards";
+  cloudShardsEl.innerHTML = payload.shards
+    .map((shard) => {
+      const stateLabel = shard.conclusion || shard.status || "unknown";
+      const stateClass = String(shard.conclusion || shard.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const durationLabel = shard.durationMs ? formatDuration(shard.durationMs) : "Waiting";
+      return `
+        <a class="cloud-shard cloud-shard--${stateClass}" href="${escapeHtml(shard.htmlUrl || payload.run?.htmlUrl || '#')}" target="_blank" rel="noreferrer">
+          <div class="cloud-shard__topline">
+            <strong>${escapeHtml(shard.name)}</strong>
+            <span class="cloud-shard__state">${escapeHtml(stateLabel)}</span>
+          </div>
+          <div class="cloud-shard__meta">
+            <span>Started: ${escapeHtml(formatDate(shard.startedAt))}</span>
+            <span>Duration: ${escapeHtml(durationLabel)}</span>
+          </div>
+        </a>
+      `;
+    })
+    .join("");
+}
+
+async function refreshCloudStatus() {
+  const response = await fetch('/api/cloud-status');
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.error || 'Failed to load cloud shard status');
+  }
+
+  renderCloudShards(payload);
+}
+
 
 function escapeHtml(value) {
   return String(value || "")
@@ -451,9 +497,21 @@ refreshCatalog({ preserveSelection: false }).catch((error) => {
   selectedCardEl.textContent = error.message;
 });
 
+refreshCloudStatus().catch((error) => {
+  cloudShardsEl.className = "cloud-shards empty-state";
+  cloudShardsEl.textContent = error.message;
+  cloudRunMetaEl.textContent = "Cloud status unavailable";
+});
+
 setInterval(() => {
   refreshCatalog().catch((error) => {
     scanStatusPillEl.textContent = "Refresh Failed";
     lastRefreshEl.textContent = error.message;
+  });
+
+  refreshCloudStatus().catch((error) => {
+    cloudShardsEl.className = "cloud-shards empty-state";
+    cloudShardsEl.textContent = error.message;
+    cloudRunMetaEl.textContent = "Cloud status unavailable";
   });
 }, REFRESH_INTERVAL_MS);

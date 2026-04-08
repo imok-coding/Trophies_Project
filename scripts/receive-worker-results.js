@@ -19,6 +19,8 @@ function parseArgs(argv) {
     artifactName: "",
     token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
     force: false,
+    watch: false,
+    pollSeconds: 120,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -40,8 +42,13 @@ function parseArgs(argv) {
     } else if (arg === "--token" && next) {
       options.token = next.trim();
       index += 1;
+    } else if (arg === "--poll-seconds" && next) {
+      options.pollSeconds = Number(next);
+      index += 1;
     } else if (arg === "--force") {
       options.force = true;
+    } else if (arg === "--watch") {
+      options.watch = true;
     }
   }
 
@@ -53,7 +60,15 @@ function parseArgs(argv) {
     throw new Error("Set GITHUB_TOKEN or pass --token.");
   }
 
+  if (!Number.isFinite(options.pollSeconds) || options.pollSeconds < 15) {
+    throw new Error("poll-seconds must be at least 15.");
+  }
+
   return options;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function ensureDirectories() {
@@ -78,18 +93,33 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
 }
 
-function appendFileContents(sourceFile, targetFile) {
-  if (!fs.existsSync(sourceFile)) {
+function readJsonLines(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+
+  return fs
+    .readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function appendFilteredJsonLines(sourceFile, targetFile, predicate) {
+  const entries = readJsonLines(sourceFile).filter(predicate);
+  if (!entries.length) {
     return 0;
   }
 
-  const content = fs.readFileSync(sourceFile, "utf8");
-  if (!content.trim()) {
-    return 0;
-  }
-
-  fs.appendFileSync(targetFile, content.endsWith("\n") ? content : content + "\n", "utf8");
-  return content.trim().split(/\r?\n/).length;
+  fs.appendFileSync(targetFile, entries.map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf8");
+  return entries.length;
 }
 
 function findPowerShellExecutable() {
@@ -176,13 +206,16 @@ async function downloadArtifactZip(options, artifact, destinationZipPath) {
   fs.writeFileSync(destinationZipPath, Buffer.from(arrayBuffer));
 }
 
-function mergeTitles(extractedDir) {
+function mergeTitles(extractedDir, options) {
   const sourceDir = path.join(extractedDir, "titles");
   if (!fs.existsSync(sourceDir)) {
-    return 0;
+    return { merged: 0, skippedExisting: 0, importedIds: new Set() };
   }
 
   let merged = 0;
+  let skippedExisting = 0;
+  const importedIds = new Set();
+
   for (const file of fs.readdirSync(sourceDir)) {
     if (!file.endsWith(".json")) {
       continue;
@@ -190,19 +223,55 @@ function mergeTitles(extractedDir) {
 
     const sourcePath = path.join(sourceDir, file);
     const targetPath = path.join(TITLES_DIR, file);
+    const npCommunicationId = path.basename(file, ".json").toUpperCase();
+
+    if (!options.force && fs.existsSync(targetPath)) {
+      skippedExisting += 1;
+      continue;
+    }
+
     fs.copyFileSync(sourcePath, targetPath);
+    importedIds.add(npCommunicationId);
     merged += 1;
   }
 
-  return merged;
+  return { merged, skippedExisting, importedIds };
 }
 
-function mergeIndexes(extractedDir) {
+function mergeIndexes(extractedDir, importedIds, options) {
   const sourceIndexDir = path.join(extractedDir, "index");
+  const shouldImportById = (entry) => {
+    const npCommunicationId = String(entry?.npCommunicationId || "").toUpperCase();
+
+    if (importedIds.has(npCommunicationId)) {
+      return true;
+    }
+
+    if (options.force) {
+      return true;
+    }
+
+    return npCommunicationId
+      ? !fs.existsSync(path.join(TITLES_DIR, npCommunicationId + ".json"))
+      : true;
+  };
+
   return {
-    valid: appendFileContents(path.join(sourceIndexDir, "valid.jsonl"), path.join(INDEX_DIR, "valid.jsonl")),
-    invalid: appendFileContents(path.join(sourceIndexDir, "invalid.jsonl"), path.join(INDEX_DIR, "invalid.jsonl")),
-    errors: appendFileContents(path.join(sourceIndexDir, "errors.jsonl"), path.join(INDEX_DIR, "errors.jsonl")),
+    valid: appendFilteredJsonLines(
+      path.join(sourceIndexDir, "valid.jsonl"),
+      path.join(INDEX_DIR, "valid.jsonl"),
+      (entry) => importedIds.has(String(entry?.npCommunicationId || "").toUpperCase())
+    ),
+    invalid: appendFilteredJsonLines(
+      path.join(sourceIndexDir, "invalid.jsonl"),
+      path.join(INDEX_DIR, "invalid.jsonl"),
+      shouldImportById
+    ),
+    errors: appendFilteredJsonLines(
+      path.join(sourceIndexDir, "errors.jsonl"),
+      path.join(INDEX_DIR, "errors.jsonl"),
+      shouldImportById
+    ),
   };
 }
 
@@ -221,8 +290,8 @@ async function importArtifact(options, artifact, state) {
   fs.mkdirSync(artifactDir, { recursive: true });
   expandArchive(zipPath, artifactDir);
 
-  const mergedTitles = mergeTitles(artifactDir);
-  const mergedIndexes = mergeIndexes(artifactDir);
+  const mergeResult = mergeTitles(artifactDir, options);
+  const mergedIndexes = mergeIndexes(artifactDir, mergeResult.importedIds, options);
   const summary = readJson(path.join(artifactDir, "summary.json"), null);
 
   state.importedArtifactIds = [...new Set([...(state.importedArtifactIds || []), artifact.id])];
@@ -232,14 +301,14 @@ async function importArtifact(options, artifact, state) {
   return {
     skipped: false,
     artifactName: artifact.name,
-    mergedTitles,
+    mergedTitles: mergeResult.merged,
+    skippedExistingTitles: mergeResult.skippedExisting,
     mergedIndexes,
     summary,
   };
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+async function receiveOnce(options) {
   ensureDirectories();
   const state = readJson(STATE_FILE, { importedArtifactIds: [] });
   const runs = await getWorkflowRuns(options);
@@ -255,7 +324,7 @@ async function main() {
     : artifacts;
 
   if (!matchingArtifacts.length) {
-    throw new Error("No matching artifacts were found for the selected workflow run.");
+    return { runId: run.id, artifactCount: 0, results: [] };
   }
 
   const results = [];
@@ -266,12 +335,37 @@ async function main() {
       console.log(`[receive] Skipped already imported artifact ${result.artifactName}`);
     } else {
       console.log(
-        `[receive] Imported ${result.artifactName} | titles ${result.mergedTitles} | valid ${result.mergedIndexes.valid} | invalid ${result.mergedIndexes.invalid} | errors ${result.mergedIndexes.errors}`
+        `[receive] Imported ${result.artifactName} | titles ${result.mergedTitles} | skipped-existing ${result.skippedExistingTitles} | valid ${result.mergedIndexes.valid} | invalid ${result.mergedIndexes.invalid} | errors ${result.mergedIndexes.errors}`
       );
     }
   }
 
-  console.log(JSON.stringify({ runId: run.id, artifactCount: results.length, results }, null, 2));
+  return { runId: run.id, artifactCount: results.length, results };
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+
+  if (!options.watch) {
+    console.log(JSON.stringify(await receiveOnce(options), null, 2));
+    return;
+  }
+
+  console.log(`[receive-watch] Watching ${options.repo} every ${options.pollSeconds}s`);
+  while (true) {
+    try {
+      const result = await receiveOnce(options);
+      if (result.results.length) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`[receive-watch] No new artifacts at ${new Date().toLocaleString()}`);
+      }
+    } catch (error) {
+      console.error(`[receive-watch-error] ${error.message}`);
+    }
+
+    await sleep(options.pollSeconds * 1000);
+  }
 }
 
 main().catch((error) => {

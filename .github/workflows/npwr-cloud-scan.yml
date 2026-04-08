@@ -1,12 +1,15 @@
 name: NPWR Cloud Scan
 
 on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'
+      timezone: 'America/Chicago'
   workflow_dispatch:
     inputs:
       shards_json:
         description: 'JSON array of shard objects: [{"name":"a","start":0,"end":9999}]'
         required: true
-        default: '[{"name":"shard-0","start":0,"end":9999},{"name":"shard-1","start":10000,"end":19999}]'
+        default: '[{"name":"shard-00","start":0,"end":9999},{"name":"shard-01","start":10000,"end":19999},{"name":"shard-02","start":20000,"end":29999},{"name":"shard-03","start":30000,"end":39999},{"name":"shard-04","start":40000,"end":49999},{"name":"shard-05","start":50000,"end":59999},{"name":"shard-06","start":60000,"end":69999},{"name":"shard-07","start":70000,"end":79999},{"name":"shard-08","start":80000,"end":89999},{"name":"shard-09","start":90000,"end":99999}]'
       delay_ms:
         description: 'Delay between NPWR requests per worker'
         required: true
@@ -16,13 +19,59 @@ on:
         required: true
         default: '3'
 
+permissions:
+  contents: read
+
 jobs:
+  refresh-auth:
+    runs-on: ubuntu-latest
+    outputs:
+      refreshed_source: ${{ steps.refresh.outputs.source }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh cloud auth
+        id: refresh
+        env:
+          PSN_NPSSO: ${{ secrets.PSN_NPSSO }}
+          PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
+        run: |
+          node scripts/refresh-cloud-auth.js > auth-refresh.json
+          refresh_token=$(node -e "process.stdout.write(require('./auth-refresh.json').refreshToken || '')")
+          source_name=$(node -e "process.stdout.write(require('./auth-refresh.json').source || '')")
+          echo "::add-mask::$refresh_token"
+          echo "source=$source_name" >> "$GITHUB_OUTPUT"
+          {
+            echo "REFRESH_TOKEN<<EOF"
+            echo "$refresh_token"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Update PSN_REFRESH_TOKEN secret
+        if: env.REFRESH_TOKEN != '' && secrets.AUTOMATION_GITHUB_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_GITHUB_TOKEN }}
+          REFRESH_TOKEN: ${{ env.REFRESH_TOKEN }}
+        run: |
+          gh secret set PSN_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$REFRESH_TOKEN"
+
   scan:
     runs-on: ubuntu-latest
+    needs: refresh-auth
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJson(inputs.shards_json) }}
+        shard: ${{ fromJson(github.event_name == 'schedule' && '[{"name":"shard-00","start":0,"end":9999},{"name":"shard-01","start":10000,"end":19999},{"name":"shard-02","start":20000,"end":29999},{"name":"shard-03","start":30000,"end":39999},{"name":"shard-04","start":40000,"end":49999},{"name":"shard-05","start":50000,"end":59999},{"name":"shard-06","start":60000,"end":69999},{"name":"shard-07","start":70000,"end":79999},{"name":"shard-08","start":80000,"end":89999},{"name":"shard-09","start":90000,"end":99999}]' || inputs.shards_json) }}
 
     steps:
       - name: Checkout
@@ -40,13 +89,14 @@ jobs:
       - name: Scan shard
         env:
           PSN_NPSSO: ${{ secrets.PSN_NPSSO }}
+          PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
         run: |
           node scripts/cloud-scan-shard.js \
             --shard-name "${{ matrix.shard.name }}" \
             --start ${{ matrix.shard.start }} \
             --end ${{ matrix.shard.end }} \
-            --delay-ms ${{ inputs.delay_ms }} \
-            --retries ${{ inputs.retries }} \
+            --delay-ms ${{ github.event_name == 'schedule' && '1200' || inputs.delay_ms }} \
+            --retries ${{ github.event_name == 'schedule' && '3' || inputs.retries }} \
             --output-dir "worker-output/${{ matrix.shard.name }}"
 
       - name: Upload shard artifact

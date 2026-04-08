@@ -24,6 +24,8 @@ const SCAN_PROGRESS_FILE = path.join(__dirname, "data", "npwr", "progress.json")
 const SCAN_VALID_INDEX_FILE = path.join(__dirname, "data", "npwr", "index", "valid.jsonl");
 const SCAN_REGION_MAP_FILE = path.join(__dirname, "data", "npwr", "regions.json");
 const PSNP_PLUS_URL = "https://psnp-plus.huskycode.dev/list.json";
+const DEFAULT_GITHUB_REPO = process.env.GITHUB_REPOSITORY || "imok-coding/Trophies_Project";
+const DEFAULT_GITHUB_WORKFLOW_FILE = "npwr-cloud-scan.yml";
 
 let authCache = null;
 let authPromise = null;
@@ -583,6 +585,91 @@ async function importMissingTitlesFromPlayer(requestedUser) {
   };
 }
 
+async function githubApiRequest(url) {
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+  if (!token) {
+    throw new Error("Set GITHUB_TOKEN or GH_TOKEN on the server to read cloud shard status.");
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "trophyproject-dashboard",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub API request failed: ${response.status} ${await response.text()}`);
+  }
+
+  return response.json();
+}
+
+async function getCloudShardStatus() {
+  const [owner, repo] = DEFAULT_GITHUB_REPO.split("/");
+  if (!owner || !repo) {
+    throw new Error("Invalid GitHub repo configuration for cloud status.");
+  }
+
+  const runsPayload = await githubApiRequest(
+    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${DEFAULT_GITHUB_WORKFLOW_FILE}/runs?per_page=5`
+  );
+  const run = (runsPayload.workflow_runs || [])[0] || null;
+
+  if (!run) {
+    return { repo: DEFAULT_GITHUB_REPO, run: null, shards: [] };
+  }
+
+  const jobsPayload = await githubApiRequest(
+    `https://api.github.com/repos/${owner}/${repo}/actions/runs/${run.id}/jobs?per_page=100`
+  );
+
+  const shards = (jobsPayload.jobs || [])
+    .filter((job) => String(job.name || "").toLowerCase().includes("scan"))
+    .map((job) => {
+      const label = String(job.name || "");
+      const match = label.match(/(([^)]+))s*$/);
+      const shardName = match ? match[1] : label;
+      const startedAt = job.started_at ? new Date(job.started_at).getTime() : NaN;
+      const completedAt = job.completed_at ? new Date(job.completed_at).getTime() : NaN;
+      const durationMs =
+        Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt >= startedAt
+          ? completedAt - startedAt
+          : Number.isFinite(startedAt)
+            ? Date.now() - startedAt
+            : null;
+
+      return {
+        id: job.id,
+        name: shardName,
+        status: job.status || "unknown",
+        conclusion: job.conclusion || null,
+        htmlUrl: job.html_url || run.html_url,
+        startedAt: job.started_at || null,
+        completedAt: job.completed_at || null,
+        durationMs,
+      };
+    })
+    .sort((left, right) => String(left.name).localeCompare(String(right.name)));
+
+  return {
+    repo: DEFAULT_GITHUB_REPO,
+    workflowFile: DEFAULT_GITHUB_WORKFLOW_FILE,
+    run: {
+      id: run.id,
+      status: run.status,
+      conclusion: run.conclusion,
+      htmlUrl: run.html_url,
+      createdAt: run.created_at,
+      updatedAt: run.updated_at,
+      runNumber: run.run_number,
+    },
+    shards,
+  };
+}
+
 function getContentType(filePath) {
   const extension = path.extname(filePath).toLowerCase();
 
@@ -670,6 +757,19 @@ async function handleRequest(request, response) {
     } catch (error) {
       sendJson(response, 500, {
         error: "Failed to fetch remote PSNP+ dataset.",
+        detail: error.message,
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/cloud-status") {
+    try {
+      const payload = await getCloudShardStatus();
+      sendJson(response, 200, payload);
+    } catch (error) {
+      sendJson(response, 500, {
+        error: "Failed to fetch cloud shard status.",
         detail: error.message,
       });
     }

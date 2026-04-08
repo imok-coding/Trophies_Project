@@ -13,7 +13,8 @@
     "scan:retry-failed": "node scripts/scan-npwr.js --retry-failed",
     "scan:status": "node scripts/scan-status.js",
     "scan:cloud:shard": "node scripts/cloud-scan-shard.js",
-    "receive:cloud": "node scripts/receive-worker-results.js"
+    "receive:cloud": "node scripts/receive-worker-results.js",
+    "receive:cloud:watch": "node scripts/receive-worker-results.js --watch"
   },
   "dependencies": {
     "psn-api": "^2.18.0"

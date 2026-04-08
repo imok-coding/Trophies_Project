@@ -688,6 +688,86 @@ img {
   line-height: 1.5;
 }
 
+.panel--cloud-status {
+  margin-bottom: 14px;
+}
+
+.cloud-shards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.cloud-shard {
+  display: block;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #121d2b, #0d1622);
+  padding: 12px;
+}
+
+.cloud-shard__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cloud-shard__topline strong {
+  color: #dcecff;
+  font-size: 14px;
+}
+
+.cloud-shard__state {
+  padding: 3px 7px;
+  border: 1px solid var(--line-strong);
+  background: #111d2a;
+  color: #bdd0e2;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cloud-shard__meta {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cloud-shard--success {
+  border-color: #2f6b4d;
+}
+
+.cloud-shard--success .cloud-shard__state {
+  border-color: #2f6b4d;
+  background: #163426;
+  color: #8fd0a9;
+}
+
+.cloud-shard--failure {
+  border-color: #7b3340;
+}
+
+.cloud-shard--failure .cloud-shard__state {
+  border-color: #7b3340;
+  background: #351720;
+  color: #f0a1ae;
+}
+
+.cloud-shard--in-progress,
+.cloud-shard--queued {
+  border-color: #5b6f8f;
+}
+
+.cloud-shard--in-progress .cloud-shard__state,
+.cloud-shard--queued .cloud-shard__state {
+  border-color: #5b6f8f;
+  background: #16263a;
+  color: #a9c5e7;
+}
+
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
