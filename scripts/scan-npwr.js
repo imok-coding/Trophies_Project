@@ -25,6 +25,7 @@ let authPromise = null;
 let notificationConfig = null;
 let notificationWarningShown = false;
 let nextScheduledRefreshAt = null;
+const NOTIFICATIONS_ENABLED = false;
 
 function parseArgs(argv) {
   const options = {
@@ -178,9 +179,10 @@ function getNotificationConfig() {
   }
 
   notificationConfig = {
-    userKey: readInfoValue("pushoverUserKey"),
-    appToken: readInfoValue("pushoverAppToken"),
-    watchedKeyword: readInfoValue("watchedTitleKeyword") || "Starfield",
+    userKey: "",
+    appToken: "",
+    watchedKeyword: "",
+    enabled: NOTIFICATIONS_ENABLED,
   };
 
   return notificationConfig;
@@ -517,171 +519,19 @@ function shouldSendTitleAlert(payload) {
 }
 
 async function sendPushoverNotification(payload) {
-  const config = getNotificationConfig();
-
-  if (!config.userKey || !config.appToken) {
-    if (!notificationWarningShown) {
-      console.log(
-        "[notify] Pushover is configured partially. Add pushoverAppToken in info.js to enable phone alerts."
-      );
-      notificationWarningShown = true;
-    }
-    return { sent: false, reason: "missing_config" };
-  }
-
-  const body = new URLSearchParams({
-    token: config.appToken,
-    user: config.userKey,
-    title: "Starfield Trophy List Found",
-    message: [
-      `Matched title: ${payload.titleName}`,
-      `ID: ${payload.npCommunicationId}`,
-      `Platform: ${payload.titlePlatform || "Unknown"}`,
-      `Saved: ${payload.scannedAt}`,
-    ].join("\n"),
-  });
-
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Pushover notification failed: ${response.status} ${detail}`);
-  }
-
-  return { sent: true };
+  return { sent: false, reason: "disabled" };
 }
 
 async function sendGenericPushoverNotification(title, message) {
-  const config = getNotificationConfig();
-
-  if (!config.userKey || !config.appToken) {
-    if (!notificationWarningShown) {
-      console.log(
-        "[notify] Pushover is configured partially. Add pushoverAppToken in info.js to enable phone alerts."
-      );
-      notificationWarningShown = true;
-    }
-    return { sent: false, reason: "missing_config" };
-  }
-
-  const body = new URLSearchParams({
-    token: config.appToken,
-    user: config.userKey,
-    title,
-    message,
-  });
-
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Pushover notification failed: ${response.status} ${detail}`);
-  }
-
-  return { sent: true };
+  return { sent: false, reason: "disabled" };
 }
 
 async function sendScannerStartupNotification(progress, resumeStart, options) {
-  const config = getNotificationConfig();
-
-  if (!config.userKey || !config.appToken) {
-    if (!notificationWarningShown) {
-      console.log(
-        "[notify] Pushover is configured partially. Add pushoverAppToken in info.js to enable phone alerts."
-      );
-      notificationWarningShown = true;
-    }
-    return;
-  }
-
-  const body = new URLSearchParams({
-    token: config.appToken,
-    user: config.userKey,
-    title: "NPWR Scanner Started",
-    message: [
-      options.retryFailed
-        ? `Mode: Retry invalid/error IDs`
-        : `Range: ${formatNpwr(options.start)} to ${formatNpwr(options.end)}`,
-      options.retryFailed
-        ? `Queue size: ${progress.totalItems || 0}`
-        : `Resuming at: ${formatNpwr(resumeStart)}`,
-      `Last scanned: ${progress.lastScannedId || "None"}`,
-      `Saved valid count: ${progress.savedValidCount || progress.validCount || 0}`,
-      `Started: ${new Date().toISOString()}`,
-    ].join("\n"),
-  });
-
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Startup Pushover notification failed: ${response.status} ${detail}`);
-  }
-
-  console.log("[notify] Sent startup Pushover alert.");
+  return;
 }
 
 async function sendScannerCompleteNotification(progress, options) {
-  const config = getNotificationConfig();
-
-  if (!config.userKey || !config.appToken) {
-    if (!notificationWarningShown) {
-      console.log(
-        "[notify] Pushover is configured partially. Add pushoverAppToken in info.js to enable phone alerts."
-      );
-      notificationWarningShown = true;
-    }
-    return;
-  }
-
-  const body = new URLSearchParams({
-    token: config.appToken,
-    user: config.userKey,
-    title: "NPWR Scanner Finished",
-    message: [
-      options.retryFailed
-        ? `Mode: Retry invalid/error IDs`
-        : `Range: ${formatNpwr(options.start)} to ${formatNpwr(options.end)}`,
-      `Last scanned: ${progress.lastScannedId || "None"}`,
-      `Valid: ${progress.validCount || 0}`,
-      `Invalid: ${progress.invalidCount || 0}`,
-      `Errors: ${progress.errorCount || 0}`,
-      `Finished: ${new Date().toISOString()}`,
-    ].join("\n"),
-  });
-
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Completion Pushover notification failed: ${response.status} ${detail}`);
-  }
-
-  console.log("[notify] Sent completion Pushover alert.");
+  return;
 }
 
 async function maybeNotifyForTitle(payload) {

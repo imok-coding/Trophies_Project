@@ -118,36 +118,7 @@ function readPushoverConfig() {
 }
 
 async function sendPushoverNotification(title, message) {
-  const config = readPushoverConfig();
-  if (!config.userKey || !config.appToken) {
-    return false;
-  }
-
-  const body = new URLSearchParams({
-    token: config.appToken,
-    user: config.userKey,
-    title,
-    message,
-    priority: "0",
-  });
-
-  if (config.device) {
-    body.set("device", config.device);
-  }
-
-  const response = await fetch("https://api.pushover.net/1/messages.json", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Pushover failed: ${response.status} ${await response.text()}`);
-  }
-
-  return true;
+  return false;
 }
 
 async function notifyValid(options, payload) {
