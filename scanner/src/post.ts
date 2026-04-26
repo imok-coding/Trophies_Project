@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { createHmac } from "crypto";
 
 export async function postIngest(url: string, secret: string, payload: unknown) {
   const raw = JSON.stringify(payload);
