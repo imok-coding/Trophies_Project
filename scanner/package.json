@@ -3,13 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "scan": "node --enable-source-maps dist/index.js",
+    "scan": "node dist/index.js",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "psn-api": "^2.18.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "@types/node": "^20.11.0"
   }
 }
