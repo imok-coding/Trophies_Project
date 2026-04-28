@@ -3,7 +3,12 @@ name: Scan NPWR shards
 on:
   schedule:
     - cron: '0 0,6,12,18 * * *'  # quoted cron string [6](https://cronbuilder.dev/blog/github-actions-cron-schedule.html)[7](https://jackharner.com/blog/github-actions-cron/)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      npwrs:
+        description: 'Optional comma or space separated NPWR IDs to scan immediately'
+        required: false
+        default: ''
 
 jobs:
   scan:
@@ -38,6 +43,7 @@ jobs:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
           BATCH_SIZE: 200
+          NPWRS: ${{ inputs.npwrs }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
           IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}

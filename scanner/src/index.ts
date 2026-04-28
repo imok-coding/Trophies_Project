@@ -12,6 +12,7 @@ function env(name: string, fallback?: string) {
 const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "200"));
+const NPWRS = process.env.NPWRS ?? "";
 
 const PSN_REFRESH_TOKEN = env("PSN_REFRESH_TOKEN");
 const IGDB_CLIENT_ID = env("IGDB_CLIENT_ID");
@@ -49,21 +50,31 @@ async function main() {
   const igdbTok = await getIgdbToken(IGDB_CLIENT_ID, IGDB_CLIENT_SECRET);
   const igdbBearer = igdbTok.access_token;
 
-  const savedCursor = await getScanCursor(INGEST_URL, INGEST_SECRET, SHARD_INDEX);
-  let cursor = savedCursor ?? range.start;
-  if (cursor < range.start || cursor > range.end) {
-    cursor = range.start;
+  const explicitNpwrs = NPWRS.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
+  const scanNpwrs: string[] = [];
+  let cursor = range.start;
+  let end = range.start - 1;
+
+  if (explicitNpwrs.length > 0) {
+    scanNpwrs.push(...explicitNpwrs);
+  } else {
+    const savedCursor = await getScanCursor(INGEST_URL, INGEST_SECRET, SHARD_INDEX);
+    cursor = savedCursor ?? range.start;
+    if (cursor < range.start || cursor > range.end) {
+      cursor = range.start;
+    }
+
+    end = Math.min(range.end, cursor + BATCH_SIZE - 1);
+    for (let id = cursor; id <= end; id++) {
+      scanNpwrs.push(npwr(id));
+    }
   }
 
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
 
-  const end = Math.min(range.end, cursor + BATCH_SIZE - 1);
-
-  for (let id = cursor; id <= end; id++) {
-    const np = npwr(id);
-
+  for (const np of scanNpwrs) {
     try {
       const g = await fetchTitleGroups(auth, np);
 
@@ -135,15 +146,18 @@ async function main() {
     }
   }
 
-  const payload = {
+  const payload: any = {
     games,
     groups,
-    trophies,
-    scan_state: {
+    trophies
+  };
+
+  if (explicitNpwrs.length === 0) {
+    payload.scan_state = {
       shard_index: SHARD_INDEX,
       cursor: end + 1
-    }
-  };
+    };
+  }
 
   await postIngest(INGEST_URL, INGEST_SECRET, payload);
   console.log(`Shard ${SHARD_INDEX} posted ${games.length} games.`);
