@@ -9,6 +9,10 @@ on:
         description: 'Optional comma or space separated NPWR IDs to scan immediately'
         required: false
         default: ''
+      psn_name:
+        description: 'Optional PSN account name to scan trophy title NPWR IDs from'
+        required: false
+        default: ''
 
 jobs:
   scan:
@@ -39,11 +43,13 @@ jobs:
 
       - name: Scan shard
         working-directory: scanner
+        if: ${{ (inputs.npwrs == '' && inputs.psn_name == '') || matrix.shard == 0 }}
         env:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
           BATCH_SIZE: 200
           NPWRS: ${{ inputs.npwrs }}
+          PSN_NAME: ${{ inputs.psn_name }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
           IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}

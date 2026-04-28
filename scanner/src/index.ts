@@ -1,5 +1,12 @@
 import { shardRange, npwr } from "./shard.js";
-import { authFromRefresh, fetchTitleGroups, fetchAllTrophies } from "./psn.js";
+import {
+  accountIdFromPsnName,
+  authFromRefresh,
+  fetchAllTrophies,
+  fetchTitleGroups,
+  fetchUserTrophyTitles,
+  type UserTrophyTitle
+} from "./psn.js";
 import { getIgdbToken, igdbSearchGame } from "./igdb.js";
 import { getAntiBotCookie, postIngest } from "./post.js";
 
@@ -13,6 +20,7 @@ const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "200"));
 const NPWRS = process.env.NPWRS ?? "";
+const PSN_NAME = process.env.PSN_NAME ?? "";
 
 const PSN_REFRESH_TOKEN = env("PSN_REFRESH_TOKEN");
 const IGDB_CLIENT_ID = env("IGDB_CLIENT_ID");
@@ -51,12 +59,16 @@ async function main() {
   const igdbBearer = igdbTok.access_token;
 
   const explicitNpwrs = NPWRS.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
-  const scanNpwrs: string[] = [];
+  const scanTitles: UserTrophyTitle[] = [];
   let cursor = range.start;
   let end = range.start - 1;
 
-  if (explicitNpwrs.length > 0) {
-    scanNpwrs.push(...explicitNpwrs);
+  if (PSN_NAME) {
+    const accountId = await accountIdFromPsnName(auth, PSN_NAME);
+    scanTitles.push(...await fetchUserTrophyTitles(auth, accountId));
+    console.log(`Resolved ${PSN_NAME} to ${accountId}; scanning ${scanTitles.length} trophy titles.`);
+  } else if (explicitNpwrs.length > 0) {
+    scanTitles.push(...explicitNpwrs.map(npCommunicationId => ({ npCommunicationId })));
   } else {
     const savedCursor = await getScanCursor(INGEST_URL, INGEST_SECRET, SHARD_INDEX);
     cursor = savedCursor ?? range.start;
@@ -66,7 +78,7 @@ async function main() {
 
     end = Math.min(range.end, cursor + BATCH_SIZE - 1);
     for (let id = cursor; id <= end; id++) {
-      scanNpwrs.push(npwr(id));
+      scanTitles.push({ npCommunicationId: npwr(id) });
     }
   }
 
@@ -74,21 +86,22 @@ async function main() {
   const groups: any[] = [];
   const trophies: any[] = [];
 
-  for (const np of scanNpwrs) {
+  for (const scanTitle of scanTitles) {
+    const np = scanTitle.npCommunicationId;
+
     try {
-      const g = await fetchTitleGroups(auth, np);
+      const g = await fetchTitleGroups(auth, np, scanTitle.npServiceName);
 
       // If it exists, psn-api gives title/platform in response [3](https://psn-api.achievements.app/api-docs/title-trophies)
-      const title_name = (g as any).trophyTitleName ?? "";
-      const title_platform = (g as any).trophyTitlePlatform ?? "";
-      const trophy_set_ver = (g as any).trophySetVersion ?? "";
-      const has_groups = (g as any).trophyGroups ? 1 : 0;
+      const title_name = (g as any).trophyTitleName ?? scanTitle.trophyTitleName ?? "";
+      const title_platform = (g as any).trophyTitlePlatform ?? scanTitle.trophyTitlePlatform ?? "";
+      const trophy_set_ver = (g as any).trophySetVersion ?? scanTitle.trophySetVersion ?? "";
+      const has_groups = ((g as any).trophyGroups || scanTitle.hasTrophyGroups) ? 1 : 0;
       if (!title_name) {
         throw new Error("Missing trophy title name");
       }
 
-      let icon_url = "";
-      // Not always available in this endpoint; keep empty if missing (suggestion)
+      const icon_url = (g as any).trophyTitleIconUrl ?? scanTitle.trophyTitleIconUrl ?? "";
 
       // IGDB enrichment (basic search by title)
       const meta = title_name ? await igdbSearchGame(IGDB_CLIENT_ID, igdbBearer, title_name) : {};
@@ -119,7 +132,7 @@ async function main() {
       }
 
       // Fetch trophies (all groups)
-      const trophyResp = await fetchAllTrophies(auth, np, title_platform);
+      const trophyResp = await fetchAllTrophies(auth, np, title_platform, scanTitle.npServiceName);
       const list = (trophyResp as any).trophies ?? [];
 
       // NOTE: When fetching "all", trophies may include group identifiers (implementation varies).
@@ -152,7 +165,7 @@ async function main() {
     trophies
   };
 
-  if (explicitNpwrs.length === 0) {
+  if (explicitNpwrs.length === 0 && !PSN_NAME) {
     payload.scan_state = {
       shard_index: SHARD_INDEX,
       cursor: end + 1
