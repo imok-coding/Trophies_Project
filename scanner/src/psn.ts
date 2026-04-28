@@ -1,4 +1,6 @@
 import {
+  exchangeAccessCodeForAuthTokens,
+  exchangeNpssoForAccessCode,
   exchangeRefreshTokenForAuthTokens,
   getTitleTrophyGroups,
   getTitleTrophies,
@@ -20,10 +22,19 @@ export type UserTrophyTitle = {
 };
 
 export async function authFromRefresh(refreshToken: string): Promise<Auth> {
-  // psn-api supports refresh token exchange [8](https://www.npmjs.com/package/psn-api)
-  const tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
+  let tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
+
   if (!tokens.accessToken) {
-    throw new Error("Could not exchange PSN_REFRESH_TOKEN for an access token. Update the GitHub secret PSN_REFRESH_TOKEN with a fresh PSN refresh token.");
+    try {
+      const accessCode = await exchangeNpssoForAccessCode(refreshToken);
+      tokens = await exchangeAccessCodeForAuthTokens(accessCode);
+    } catch (e) {
+      throw new Error("Could not exchange PSN_REFRESH_TOKEN for an access token. Put either a valid PSN refresh token or a fresh NPSSO token in the GitHub secret PSN_REFRESH_TOKEN.");
+    }
+  }
+
+  if (!tokens.accessToken) {
+    throw new Error("Could not exchange PSN_REFRESH_TOKEN for an access token. Put either a valid PSN refresh token or a fresh NPSSO token in the GitHub secret PSN_REFRESH_TOKEN.");
   }
 
   return { accessToken: tokens.accessToken };
