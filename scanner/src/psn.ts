@@ -1,9 +1,9 @@
 import {
   exchangeRefreshTokenForAuthTokens,
-  getProfileFromUserName,
   getTitleTrophyGroups,
   getTitleTrophies,
-  getUserTitles
+  getUserTitles,
+  makeUniversalSearch
 } from "psn-api";
 
 export type Auth = { accessToken: string };
@@ -28,8 +28,16 @@ export async function authFromRefresh(refreshToken: string): Promise<Auth> {
 export async function accountIdFromPsnName(auth: Auth, psnName: string): Promise<string> {
   if (psnName === "me") return "me";
 
-  const profile = await getProfileFromUserName(auth, psnName);
-  return profile.profile.accountId;
+  const search = await makeUniversalSearch(auth, psnName, "SocialAllAccounts");
+  const accounts = search.domainResponses.flatMap(domain => domain.results);
+  const exact = accounts.find(account => account.socialMetadata.onlineId.toLowerCase() === psnName.toLowerCase());
+  const account = exact ?? accounts[0];
+
+  if (!account) {
+    throw new Error(`Could not find PSN account ${psnName}`);
+  }
+
+  return account.socialMetadata.accountId;
 }
 
 export async function fetchUserTrophyTitles(auth: Auth, accountId: string): Promise<UserTrophyTitle[]> {
