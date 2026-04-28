@@ -1,5 +1,32 @@
 import crypto from "node:crypto";
 
+async function sleep(ms: number) {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, attempts = 5): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status !== 429 && res.status < 500) {
+        return res;
+      }
+
+      lastError = new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      lastError = e;
+    }
+
+    if (attempt < attempts) {
+      await sleep(500 * attempt * attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 function parseInfinityFreeCookie(html: string): string | undefined {
   const match = html.match(/var a=toNumbers\("([0-9a-f]+)"\),b=toNumbers\("([0-9a-f]+)"\),c=toNumbers\("([0-9a-f]+)"\)/i);
   if (!match) return undefined;
@@ -21,7 +48,7 @@ function parseInfinityFreeCookie(html: string): string | undefined {
 }
 
 export async function getAntiBotCookie(url: string): Promise<string | undefined> {
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     headers: { "User-Agent": "Mozilla/5.0" }
   });
   const body = await res.text();
@@ -33,7 +60,7 @@ export async function postIngest(url: string, secret: string, payload: unknown) 
   const sig = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
   const cookie = await getAntiBotCookie(url);
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
