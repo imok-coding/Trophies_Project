@@ -1,0 +1,8 @@
+node_modules/
+scanner/node_modules/
+scanner/dist/
+site/includes/config.local.php
+.env
+.env.*
+/package-lock.json
+*.zip

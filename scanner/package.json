@@ -1,0 +1,17 @@
+{
+  "name": "scanner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan": "node --enable-source-maps dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --enable-source-maps dist/selftest.js"
+  },
+  "dependencies": {
+    "psn-api": "^2.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.5.0"
+  }
+}
