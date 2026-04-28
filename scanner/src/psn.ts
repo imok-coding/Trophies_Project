@@ -14,7 +14,11 @@ export async function authFromRefresh(refreshToken: string): Promise<Auth> {
 
 export async function fetchTitleGroups(auth: Auth, npCommunicationId: string) {
   // Existence check + title/platform via trophy groups [3](https://psn-api.achievements.app/api-docs/title-trophies)
-  return await getTitleTrophyGroups(auth, npCommunicationId);
+  try {
+    return await getTitleTrophyGroups(auth, npCommunicationId);
+  } catch (e) {
+    return await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: "trophy" });
+  }
 }
 
 export async function fetchAllTrophies(auth: Auth, npCommunicationId: string, platform: string) {
