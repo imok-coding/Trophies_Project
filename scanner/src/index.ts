@@ -58,6 +58,28 @@ async function main() {
   const igdbTok = await getIgdbToken(IGDB_CLIENT_ID, IGDB_CLIENT_SECRET);
   const igdbBearer = igdbTok.access_token;
 
+  async function ingestScanResult(
+    games: any[],
+    groups: any[],
+    trophies: any[],
+    nextCursor?: number
+  ) {
+    const payload: any = {
+      games,
+      groups,
+      trophies
+    };
+
+    if (nextCursor != null) {
+      payload.scan_state = {
+        shard_index: SHARD_INDEX,
+        cursor: nextCursor
+      };
+    }
+
+    await postIngest(INGEST_URL, INGEST_SECRET, payload);
+  }
+
   const explicitNpwrs = NPWRS.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
   const scanTitles: UserTrophyTitle[] = [];
   let cursor = range.start;
@@ -91,9 +113,18 @@ async function main() {
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
+  let postedGames = 0;
 
-  for (const scanTitle of scanTitles) {
+  for (let index = 0; index < scanTitles.length; index++) {
+    const scanTitle = scanTitles[index];
     const np = scanTitle.npCommunicationId;
+    const numericMatch = np.match(/^NPWR(\d{5})_00$/);
+    const nextCursor = numericMatch && explicitNpwrs.length === 0 && !PSN_NAME
+      ? Number(numericMatch[1]) + 1
+      : undefined;
+    const gameRows: any[] = [];
+    const groupRows: any[] = [];
+    const trophyRows: any[] = [];
 
     try {
       const g = await fetchTitleGroups(auth, np, scanTitle.npServiceName);
@@ -112,7 +143,7 @@ async function main() {
       // IGDB enrichment (basic search by title)
       const meta = title_name ? await igdbSearchGame(IGDB_CLIENT_ID, igdbBearer, title_name) : {};
 
-      games.push({
+      gameRows.push({
         npwr: np,
         title_name,
         title_platform,
@@ -127,7 +158,7 @@ async function main() {
       // Save trophy groups
       const tg = (g as any).trophyGroups ?? [];
       for (const gr of tg) {
-        groups.push({
+        groupRows.push({
           npwr: np,
           group_id: gr.trophyGroupId,
           group_name: gr.trophyGroupName ?? "",
@@ -144,7 +175,7 @@ async function main() {
       // NOTE: When fetching "all", trophies may include group identifiers (implementation varies).
       // If group_id is missing, default to "default" (suggestion).
       for (const t of list) {
-        trophies.push({
+        trophyRows.push({
           npwr: np,
           group_id: t.trophyGroupId ?? "default",
           trophy_id: t.trophyId,
@@ -155,31 +186,37 @@ async function main() {
           icon_url: t.trophyIconUrl ?? ""
         });
       }
-
-      // Gentle pacing (suggestion)
-      await sleep(250);
     } catch (e) {
-      // Most NPWR IDs will not exist; treat errors as "not found" (suggestion)
+      if (explicitNpwrs.length === 0 && !PSN_NAME && nextCursor != null) {
+        await ingestScanResult([], [], [], nextCursor);
+        if ((index + 1) % 100 === 0) {
+          console.log(`Scanned through ${np}; no title found at this ID.`);
+        }
+      }
+
       await sleep(100);
       continue;
     }
+
+    if (explicitNpwrs.length === 0 && !PSN_NAME) {
+      await ingestScanResult(gameRows, groupRows, trophyRows, nextCursor);
+      postedGames += gameRows.length;
+      console.log(`Scanned ${np}: posted ${gameRows[0]?.title_name ?? "title"}`);
+    } else {
+      games.push(...gameRows);
+      groups.push(...groupRows);
+      trophies.push(...trophyRows);
+    }
+
+    await sleep(250);
   }
 
-  const payload: any = {
-    games,
-    groups,
-    trophies
-  };
-
-  if (explicitNpwrs.length === 0 && !PSN_NAME) {
-    payload.scan_state = {
-      shard_index: SHARD_INDEX,
-      cursor: end + 1
-    };
+  if (explicitNpwrs.length > 0 || PSN_NAME) {
+    await ingestScanResult(games, groups, trophies);
+    postedGames = games.length;
   }
 
-  await postIngest(INGEST_URL, INGEST_SECRET, payload);
-  console.log(`Shard ${SHARD_INDEX} posted ${games.length} games.`);
+  console.log(`Shard ${SHARD_INDEX} posted ${postedGames} games.`);
 }
 
 main().catch(err => {
