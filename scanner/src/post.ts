@@ -20,7 +20,7 @@ function parseInfinityFreeCookie(html: string): string | undefined {
   return `__test=${cookieValue}`;
 }
 
-async function getAntiBotCookie(url: string): Promise<string | undefined> {
+export async function getAntiBotCookie(url: string): Promise<string | undefined> {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0" }
   });

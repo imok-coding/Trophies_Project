@@ -1,7 +1,7 @@
 import { shardRange, npwr } from "./shard.js";
 import { authFromRefresh, fetchTitleGroups, fetchAllTrophies } from "./psn.js";
 import { getIgdbToken, igdbSearchGame } from "./igdb.js";
-import { postIngest } from "./post.js";
+import { getAntiBotCookie, postIngest } from "./post.js";
 
 function env(name: string, fallback?: string) {
   const v = process.env[name] ?? fallback;
@@ -23,6 +23,25 @@ async function sleep(ms: number) {
   await new Promise(r => setTimeout(r, ms));
 }
 
+async function getScanCursor(ingestUrl: string, secret: string, shardIndex: number): Promise<number | undefined> {
+  const stateUrl = new URL(ingestUrl);
+  stateUrl.pathname = stateUrl.pathname.replace(/\/ingest\.php$/, "/state.php");
+  stateUrl.searchParams.set("shard_index", String(shardIndex));
+
+  const cookie = await getAntiBotCookie(stateUrl.toString());
+  const res = await fetch(stateUrl, {
+    headers: {
+      "X-Ingest-Secret": secret,
+      "User-Agent": "Mozilla/5.0",
+      ...(cookie ? { "Cookie": cookie } : {})
+    }
+  });
+
+  if (!res.ok) return undefined;
+  const data = await res.json().catch(() => undefined) as { cursor?: number | null } | undefined;
+  return typeof data?.cursor === "number" ? data.cursor : undefined;
+}
+
 async function main() {
   const range = shardRange(SHARD_INDEX, SHARD_COUNT);
   const auth = await authFromRefresh(PSN_REFRESH_TOKEN);
@@ -30,16 +49,17 @@ async function main() {
   const igdbTok = await getIgdbToken(IGDB_CLIENT_ID, IGDB_CLIENT_SECRET);
   const igdbBearer = igdbTok.access_token;
 
-  // Cursor: optional simple approach (suggestion)
-  // For a starter: scan from start to end in batches each run.
-  // For production: store/load cursor from DB via another endpoint.
-  let cursor = range.start;
+  const savedCursor = await getScanCursor(INGEST_URL, INGEST_SECRET, SHARD_INDEX);
+  let cursor = savedCursor ?? range.start;
+  if (cursor < range.start || cursor > range.end) {
+    cursor = range.start;
+  }
 
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
 
-  const end = Math.min(range.end, range.start + BATCH_SIZE - 1);
+  const end = Math.min(range.end, cursor + BATCH_SIZE - 1);
 
   for (let id = cursor; id <= end; id++) {
     const np = npwr(id);
