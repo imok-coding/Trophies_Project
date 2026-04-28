@@ -29,8 +29,13 @@ export async function accountIdFromPsnName(auth: Auth, psnName: string): Promise
   if (psnName === "me") return "me";
 
   const search = await makeUniversalSearch(auth, psnName, "SocialAllAccounts");
-  const accounts = search.domainResponses.flatMap(domain => domain.results);
-  const exact = accounts.find(account => account.socialMetadata.onlineId.toLowerCase() === psnName.toLowerCase());
+  const domainResponses = (search as any).domainResponses ?? (search as any).data?.domainResponses;
+  if (!Array.isArray(domainResponses)) {
+    throw new Error(`PSN search returned unexpected response: ${JSON.stringify(search).slice(0, 500)}`);
+  }
+
+  const accounts = domainResponses.flatMap((domain: any) => Array.isArray(domain.results) ? domain.results : []);
+  const exact = accounts.find(account => account.socialMetadata?.onlineId?.toLowerCase() === psnName.toLowerCase());
   const account = exact ?? accounts[0];
 
   if (!account) {
