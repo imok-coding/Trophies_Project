@@ -19,6 +19,7 @@ function env(name: string, fallback?: string) {
 const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
+const LOG_EVERY = Number(env("LOG_EVERY", "25"));
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -116,6 +117,19 @@ async function main() {
   const groups: any[] = [];
   const trophies: any[] = [];
   let postedGames = 0;
+  let invalidCount = 0;
+
+  function logProgress(currentNpwr: string, status: "invalid" | "game", detail = "") {
+    const currentId = Number(currentNpwr.match(/^NPWR(\d{5})_00$/)?.[1] ?? range.start);
+    const scanned = Math.max(0, currentId - range.start + 1);
+    const total = range.end - range.start + 1;
+    const percent = Math.min(100, (scanned / total) * 100).toFixed(1);
+    const suffix = detail ? ` | ${detail}` : "";
+
+    console.log(
+      `Shard ${SHARD_INDEX} progress ${scanned}/${total} (${percent}%) | current=${currentNpwr} | result=${status} | games=${postedGames} | invalid=${invalidCount}${suffix}`
+    );
+  }
 
   for (let index = 0; index < scanTitles.length; index++) {
     const scanTitle = scanTitles[index];
@@ -191,8 +205,9 @@ async function main() {
     } catch (e) {
       if (explicitNpwrs.length === 0 && !PSN_NAME && nextCursor != null) {
         await ingestScanResult([], [], [], nextCursor);
-        if ((index + 1) % 100 === 0) {
-          console.log(`Scanned through ${np}; no title found at this ID.`);
+        invalidCount++;
+        if ((index + 1) % LOG_EVERY === 0) {
+          logProgress(np, "invalid", "no title found");
         }
       }
 
@@ -203,7 +218,11 @@ async function main() {
     if (explicitNpwrs.length === 0 && !PSN_NAME) {
       await ingestScanResult(gameRows, groupRows, trophyRows, nextCursor);
       postedGames += gameRows.length;
-      console.log(`Scanned ${np}: posted ${gameRows[0]?.title_name ?? "title"}`);
+      logProgress(
+        np,
+        "game",
+        `title="${gameRows[0]?.title_name ?? "Unknown"}" | platform=${gameRows[0]?.title_platform ?? ""} | groups_upserted=${groupRows.length} | trophies_upserted=${trophyRows.length}`
+      );
     } else {
       games.push(...gameRows);
       groups.push(...groupRows);

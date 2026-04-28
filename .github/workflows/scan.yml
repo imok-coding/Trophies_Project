@@ -53,6 +53,7 @@ jobs:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
           BATCH_SIZE: ${{ inputs.batch_size || '5000' }}
+          LOG_EVERY: 25
           NPWRS: ${{ inputs.npwrs }}
           PSN_NAME: ${{ inputs.psn_name }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
