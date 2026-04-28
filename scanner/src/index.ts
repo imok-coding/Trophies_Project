@@ -52,6 +52,9 @@ async function main() {
       const title_platform = (g as any).trophyTitlePlatform ?? "";
       const trophy_set_ver = (g as any).trophySetVersion ?? "";
       const has_groups = (g as any).trophyGroups ? 1 : 0;
+      if (!title_name) {
+        throw new Error("Missing trophy title name");
+      }
 
       let icon_url = "";
       // Not always available in this endpoint; keep empty if missing (suggestion)

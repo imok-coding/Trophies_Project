@@ -1,7 +1,4 @@
 <?php
-require_once __DIR__ . '/../includes/db.php';
-$db = db_connect();
-
 header('Content-Type: application/json');
 
 function table_count(mysqli $db, string $table): int {
@@ -19,12 +16,23 @@ function table_count(mysqli $db, string $table): int {
   return (int)$row['total'];
 }
 
-echo json_encode([
-  'ok' => true,
-  'database' => [
-    'games' => table_count($db, 'games'),
-    'trophy_groups' => table_count($db, 'trophy_groups'),
-    'trophies' => table_count($db, 'trophies'),
-    'scan_state' => table_count($db, 'scan_state')
-  ]
-]);
+try {
+  require_once __DIR__ . '/../includes/db.php';
+  $db = db_connect();
+
+  echo json_encode([
+    'ok' => true,
+    'database' => [
+      'games' => table_count($db, 'games'),
+      'trophy_groups' => table_count($db, 'trophy_groups'),
+      'trophies' => table_count($db, 'trophies'),
+      'scan_state' => table_count($db, 'scan_state')
+    ]
+  ]);
+} catch (Throwable $e) {
+  http_response_code(500);
+  echo json_encode([
+    'ok' => false,
+    'error' => $e->getMessage()
+  ]);
+}
