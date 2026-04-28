@@ -61,27 +61,34 @@ export async function accountIdFromPsnName(auth: Auth, psnName: string): Promise
 }
 
 export async function fetchUserTrophyTitles(auth: Auth, accountId: string): Promise<UserTrophyTitle[]> {
-  const titles: UserTrophyTitle[] = [];
+  const titlesByNpwr = new Map<string, UserTrophyTitle>();
   let offset = 0;
   const limit = 800;
+  const services: NpServiceName[] = ["trophy2", "trophy"];
 
-  while (true) {
-    const page = await getUserTitles(auth, accountId, { limit, offset });
-    titles.push(...page.trophyTitles.map(title => ({
-      npCommunicationId: title.npCommunicationId,
-      npServiceName: title.npServiceName,
-      trophySetVersion: title.trophySetVersion,
-      trophyTitleName: title.trophyTitleName,
-      trophyTitleIconUrl: title.trophyTitleIconUrl,
-      trophyTitlePlatform: title.trophyTitlePlatform,
-      hasTrophyGroups: title.hasTrophyGroups
-    })));
+  for (const service of services) {
+    offset = 0;
 
-    if (page.nextOffset == null || page.nextOffset <= offset) break;
-    offset = page.nextOffset;
+    while (true) {
+      const page = await getUserTitles(auth, accountId, { limit, offset, npServiceName: service } as any);
+      for (const title of page.trophyTitles) {
+        titlesByNpwr.set(title.npCommunicationId, {
+          npCommunicationId: title.npCommunicationId,
+          npServiceName: title.npServiceName ?? service,
+          trophySetVersion: title.trophySetVersion,
+          trophyTitleName: title.trophyTitleName,
+          trophyTitleIconUrl: title.trophyTitleIconUrl,
+          trophyTitlePlatform: title.trophyTitlePlatform,
+          hasTrophyGroups: title.hasTrophyGroups
+        });
+      }
+
+      if (page.nextOffset == null || page.nextOffset <= offset) break;
+      offset = page.nextOffset;
+    }
   }
 
-  return titles;
+  return [...titlesByNpwr.values()];
 }
 
 export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, npServiceName?: NpServiceName) {
