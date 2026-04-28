@@ -22,6 +22,10 @@ export type UserTrophyTitle = {
 export async function authFromRefresh(refreshToken: string): Promise<Auth> {
   // psn-api supports refresh token exchange [8](https://www.npmjs.com/package/psn-api)
   const tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
+  if (!tokens.accessToken) {
+    throw new Error("Could not exchange PSN_REFRESH_TOKEN for an access token. Update the GitHub secret PSN_REFRESH_TOKEN with a fresh PSN refresh token.");
+  }
+
   return { accessToken: tokens.accessToken };
 }
 
