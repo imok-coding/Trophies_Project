@@ -67,6 +67,12 @@ async function main() {
     const accountId = await accountIdFromPsnName(auth, PSN_NAME);
     scanTitles.push(...await fetchUserTrophyTitles(auth, accountId));
     console.log(`Resolved ${PSN_NAME} to ${accountId}; scanning ${scanTitles.length} trophy titles.`);
+    for (const title of scanTitles.slice(0, 25)) {
+      console.log(`PSN title: ${title.npCommunicationId} ${title.npServiceName ?? ""} ${title.trophyTitleName ?? ""}`);
+    }
+    if (scanTitles.length > 25) {
+      console.log(`PSN title log truncated; ${scanTitles.length - 25} more titles.`);
+    }
   } else if (explicitNpwrs.length > 0) {
     scanTitles.push(...explicitNpwrs.map(npCommunicationId => ({ npCommunicationId })));
   } else {

@@ -77,7 +77,7 @@ $error = '';
 $psnName = trim((string)($_POST['psn_name'] ?? ''));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  if (!preg_match('/^[A-Za-z0-9_-]{3,16}$/', $psnName)) {
+  if ($psnName !== 'me' && !preg_match('/^[A-Za-z0-9_-]{3,16}$/', $psnName)) {
     $error = 'Enter a valid PSN name.';
   } else {
     try {
