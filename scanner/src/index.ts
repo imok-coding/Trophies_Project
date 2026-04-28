@@ -18,7 +18,7 @@ function env(name: string, fallback?: string) {
 
 const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
-const BATCH_SIZE = Number(env("BATCH_SIZE", "200"));
+const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -53,6 +53,7 @@ async function getScanCursor(ingestUrl: string, secret: string, shardIndex: numb
 
 async function main() {
   const range = shardRange(SHARD_INDEX, SHARD_COUNT);
+  console.log(`Shard ${SHARD_INDEX} owns ${npwr(range.start)} through ${npwr(range.end)}.`);
   const auth = await authFromRefresh(PSN_REFRESH_TOKEN);
 
   const igdbTok = await getIgdbToken(IGDB_CLIENT_ID, IGDB_CLIENT_SECRET);
@@ -105,6 +106,7 @@ async function main() {
     }
 
     end = Math.min(range.end, cursor + BATCH_SIZE - 1);
+    console.log(`Shard ${SHARD_INDEX} scanning ${npwr(cursor)} through ${npwr(end)} this run.`);
     for (let id = cursor; id <= end; id++) {
       scanTitles.push({ npCommunicationId: npwr(id) });
     }

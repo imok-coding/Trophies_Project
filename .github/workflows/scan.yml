@@ -14,9 +14,9 @@ on:
         required: false
         default: ''
       batch_size:
-        description: 'How many NPWR IDs each shard should scan; use 5000 to cover all 100000 IDs across 20 shards'
+        description: 'How many NPWR IDs each shard should scan'
         required: false
-        default: '200'
+        default: '5000'
 
 jobs:
   scan:
@@ -52,7 +52,7 @@ jobs:
         env:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
-          BATCH_SIZE: ${{ inputs.batch_size || '200' }}
+          BATCH_SIZE: ${{ inputs.batch_size || '5000' }}
           NPWRS: ${{ inputs.npwrs }}
           PSN_NAME: ${{ inputs.psn_name }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
