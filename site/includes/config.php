@@ -24,6 +24,15 @@ function define_config(string $name): void {
   }
 }
 
+function optional_config_value(string $name, string $fallback = ''): string {
+  if (defined($name)) {
+    return constant($name);
+  }
+
+  $value = getenv($name);
+  return ($value === false || $value === '') ? $fallback : $value;
+}
+
 define_config('DB_HOST');
 define_config('DB_NAME');
 define_config('DB_USER');

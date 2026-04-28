@@ -15,7 +15,9 @@ function render_header(string $title = "Trophy Scanner") { ?>
       <form action="/pages/search.php" method="get" class="flex-1 max-w-xl">
         <input name="q" placeholder="Search games..." class="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 outline-none focus:border-blue-500" />
       </form>
-      <div class="text-xs text-zinc-400">PSNProfiles‑style starter</div>
+      <nav class="flex items-center gap-3 text-sm text-zinc-300">
+        <a href="/pages/scan-user.php" class="hover:text-white">Scan PSN</a>
+      </nav>
     </div>
   </header>
   <main class="mx-auto max-w-6xl px-4 py-6">
