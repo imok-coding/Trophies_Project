@@ -17,6 +17,8 @@ $db = db_connect();
 $db->begin_transaction();
 
 try {
+  $results = [];
+
   // Games upsert
   $stmtGame = $db->prepare("
     INSERT INTO games (npwr, title_name, title_platform, trophy_set_ver, has_groups, icon_url,
@@ -34,6 +36,7 @@ try {
       last_seen_utc=UTC_TIMESTAMP(),
       last_scan_utc=UTC_TIMESTAMP()
   ");
+  $stmtExistingGame = $db->prepare("SELECT 1 FROM games WHERE npwr=? LIMIT 1");
 
   foreach (($data["games"] ?? []) as $g) {
     $npwr = (string)($g["npwr"] ?? "");
@@ -46,6 +49,10 @@ try {
     $igdb_name = isset($g["igdb_name"]) ? (string)$g["igdb_name"] : null;
     $first_release = isset($g["first_release"]) ? (string)$g["first_release"] : null;
 
+    $stmtExistingGame->bind_param("s", $npwr);
+    $stmtExistingGame->execute();
+    $exists = $stmtExistingGame->get_result()->num_rows > 0;
+
     $stmtGame->bind_param(
       "ssssissss",
       $npwr, $title_name, $title_platform, $trophy_set_ver,
@@ -53,6 +60,9 @@ try {
       $igdb_id, $igdb_name, $first_release
     );
     $stmtGame->execute();
+    if ($npwr !== "") {
+      $results[$npwr] = $exists ? "updated" : "inserted";
+    }
   }
 
   // Trophy groups upsert
@@ -142,7 +152,8 @@ try {
   }
 
   $db->commit();
-  echo "OK";
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode(['ok' => true, 'results' => $results]);
 } catch (Throwable $e) {
   $db->rollback();
   http_response_code(500);

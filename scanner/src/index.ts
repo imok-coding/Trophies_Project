@@ -20,7 +20,6 @@ function env(name: string, fallback?: string) {
 const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
-const START_FROM_BEGINNING = (process.env.START_FROM_BEGINNING ?? "").toLowerCase() === "true";
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -79,7 +78,7 @@ async function main() {
       };
     }
 
-    await postIngest(INGEST_URL, INGEST_SECRET, payload);
+    return await postIngest(INGEST_URL, INGEST_SECRET, payload);
   }
 
   const explicitNpwrs = NPWRS.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
@@ -100,16 +99,7 @@ async function main() {
   } else if (explicitNpwrs.length > 0) {
     scanTitles.push(...explicitNpwrs.map(npCommunicationId => ({ npCommunicationId })));
   } else {
-    if (START_FROM_BEGINNING) {
-      cursor = range.start;
-    } else {
-      const savedCursor = await getScanCursor(INGEST_URL, INGEST_SECRET, SHARD_INDEX);
-      cursor = savedCursor ?? range.start;
-      if (cursor < range.start || cursor > range.end) {
-        cursor = range.start;
-      }
-    }
-
+    cursor = range.start;
     end = Math.min(range.end, cursor + BATCH_SIZE - 1);
     for (let id = cursor; id <= end; id++) {
       scanTitles.push({ npCommunicationId: npwr(id) });
@@ -119,6 +109,7 @@ async function main() {
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
+  const pendingTitleByNpwr = new Map<string, string>();
   let postedGames = 0;
   let invalidCount = 0;
 
@@ -225,22 +216,27 @@ async function main() {
     }
 
     if (explicitNpwrs.length === 0 && !PSN_NAME) {
-      logNpwrResult(np, String(gameRows[0]?.title_name ?? "Unknown"));
-      await ingestScanResult(gameRows, groupRows, trophyRows, nextCursor);
+      const ingest = await ingestScanResult(gameRows, groupRows, trophyRows, nextCursor);
       postedGames += gameRows.length;
+      const result = ingest.results?.[np];
+      logNpwrResult(np, result === "updated" ? "Updated" : String(gameRows[0]?.title_name ?? "Unknown"));
     } else {
       games.push(...gameRows);
       groups.push(...groupRows);
       trophies.push(...trophyRows);
       postedGames = games.length;
-      logNpwrResult(np, String(gameRows[0]?.title_name ?? "Unknown"));
+      pendingTitleByNpwr.set(np, String(gameRows[0]?.title_name ?? "Unknown"));
     }
 
     await sleep(250);
   }
 
   if (explicitNpwrs.length > 0 || PSN_NAME) {
-    await ingestScanResult(games, groups, trophies);
+    const ingest = await ingestScanResult(games, groups, trophies);
+    for (const [np, title] of pendingTitleByNpwr) {
+      const result = ingest.results?.[np];
+      logNpwrResult(np, result === "updated" ? "Updated" : title);
+    }
     postedGames = games.length;
   }
 }

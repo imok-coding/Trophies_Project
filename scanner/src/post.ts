@@ -68,7 +68,12 @@ export async function getAntiBotCookie(url: string): Promise<string | undefined>
   return parseInfinityFreeCookie(body);
 }
 
-export async function postIngest(url: string, secret: string, payload: unknown) {
+export type IngestResponse = {
+  ok: boolean;
+  results?: Record<string, "inserted" | "updated">;
+};
+
+export async function postIngest(url: string, secret: string, payload: unknown): Promise<IngestResponse> {
   const raw = JSON.stringify(payload);
   const sig = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
   const cookie = await getAntiBotCookie(url);
@@ -89,7 +94,19 @@ export async function postIngest(url: string, secret: string, payload: unknown) 
     throw new Error(`Ingest failed ${res.status}: ${summarizeBody(txt)}`);
   }
 
-  if (txt.trim() !== "OK") {
+  if (txt.trim() === "OK") {
+    return { ok: true };
+  }
+
+  let data: IngestResponse;
+  try {
+    data = JSON.parse(txt) as IngestResponse;
+  } catch {
     throw new Error(`Ingest returned unexpected response: ${summarizeBody(txt)}`);
   }
+  if (!data.ok) {
+    throw new Error(`Ingest returned unexpected response: ${summarizeBody(txt)}`);
+  }
+
+  return data;
 }
