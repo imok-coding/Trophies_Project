@@ -5,6 +5,7 @@ import {
   fetchAllTrophies,
   fetchTitleGroups,
   fetchUserTrophyTitles,
+  PsnRetryableError,
   TitleLookupError,
   type UserTrophyTitle
 } from "./psn.js";
@@ -196,7 +197,7 @@ async function main() {
         });
       }
     } catch (e) {
-      const retryable = e instanceof TitleLookupError && e.retryable;
+      const retryable = (e instanceof TitleLookupError && e.retryable) || e instanceof PsnRetryableError;
       if (retryable) {
         logNpwrResult(np, `Error - ${errorSummary(e).replaceAll("\n", " ")}`);
         if (explicitNpwrs.length === 0 && !PSN_NAME) {

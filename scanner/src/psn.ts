@@ -8,7 +8,7 @@ import {
   makeUniversalSearch
 } from "psn-api";
 
-export type Auth = { accessToken: string };
+export type Auth = { accessToken: string; refreshSource?: string };
 export type NpServiceName = "trophy" | "trophy2";
 
 export type UserTrophyTitle = {
@@ -28,7 +28,16 @@ export class TitleLookupError extends Error {
   }
 }
 
+export class PsnRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PsnRetryableError";
+  }
+}
+
 function isRetryableApiError(error: any) {
+  if (error instanceof PsnRetryableError) return true;
+
   const message = String(error?.message ?? error ?? "").toLowerCase();
   if (message.includes("not found") || message.includes("resource not found")) return false;
   if (message.includes("missing trophy title name")) return false;
@@ -37,6 +46,12 @@ function isRetryableApiError(error: any) {
   if (status === 429 || status >= 500) return true;
 
   return message.includes("rate") || message.includes("timeout") || message.includes("temporar");
+}
+
+function isExpiredTokenError(error: any) {
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  const status = Number(error?.status ?? error?.code ?? error?.httpStatus);
+  return status === 401 || message.includes("expired token") || message.includes("token expired");
 }
 
 export async function authFromRefresh(refreshToken: string): Promise<Auth> {
@@ -55,7 +70,21 @@ export async function authFromRefresh(refreshToken: string): Promise<Auth> {
     throw new Error("Could not exchange PSN_REFRESH_TOKEN for an access token. Put either a valid PSN refresh token or a fresh NPSSO token in the GitHub secret PSN_REFRESH_TOKEN.");
   }
 
-  return { accessToken: tokens.accessToken };
+  return { accessToken: tokens.accessToken, refreshSource: refreshToken };
+}
+
+async function refreshAuth(auth: Auth) {
+  if (!auth.refreshSource) {
+    throw new PsnRetryableError("PSN access token expired and no refresh source is available.");
+  }
+
+  try {
+    const next = await authFromRefresh(auth.refreshSource);
+    auth.accessToken = next.accessToken;
+    auth.refreshSource = next.refreshSource;
+  } catch (e) {
+    throw new PsnRetryableError(`PSN access token expired and refresh failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 export async function accountIdFromPsnName(auth: Auth, psnName: string): Promise<string> {
@@ -88,7 +117,14 @@ export async function fetchUserTrophyTitles(auth: Auth, accountId: string): Prom
     offset = 0;
 
     while (true) {
-      const page = await getUserTitles(auth, accountId, { limit, offset, npServiceName: service } as any);
+      let page;
+      try {
+        page = await getUserTitles(auth, accountId, { limit, offset, npServiceName: service } as any);
+      } catch (e) {
+        if (!isExpiredTokenError(e)) throw e;
+        await refreshAuth(auth);
+        page = await getUserTitles(auth, accountId, { limit, offset, npServiceName: service } as any);
+      }
       for (const title of page.trophyTitles) {
         titlesByNpwr.set(title.npCommunicationId, {
           npCommunicationId: title.npCommunicationId,
@@ -116,22 +152,45 @@ export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, np
 
   for (const service of services) {
     try {
-      const groups = await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: service });
+      let groups = await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: service });
       const raw = groups as any;
-      if (raw.error) {
-        if (isRetryableApiError(raw.error)) retryable = true;
-        errors.push(`${service}: ${raw.error.message ?? JSON.stringify(raw.error)}`);
+      if (isExpiredTokenError(raw.error)) {
+        await refreshAuth(auth);
+        groups = await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: service });
+      }
+      const refreshedRaw = groups as any;
+      if (refreshedRaw.error) {
+        if (isRetryableApiError(refreshedRaw.error)) retryable = true;
+        errors.push(`${service}: ${refreshedRaw.error.message ?? JSON.stringify(refreshedRaw.error)}`);
         continue;
       }
 
-      if (!raw.trophyTitleName) {
+      if (!refreshedRaw.trophyTitleName) {
         errors.push(`${service}: missing trophy title name`);
         continue;
       }
 
-      raw.__resolvedNpServiceName = service;
+      refreshedRaw.__resolvedNpServiceName = service;
       return groups;
     } catch (e) {
+      if (isExpiredTokenError(e)) {
+        try {
+          await refreshAuth(auth);
+          const groups = await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: service });
+          const raw = groups as any;
+          if (!raw.error && raw.trophyTitleName) {
+            raw.__resolvedNpServiceName = service;
+            return groups;
+          }
+          if (raw.error) errors.push(`${service}: ${raw.error.message ?? JSON.stringify(raw.error)}`);
+          else errors.push(`${service}: missing trophy title name`);
+          continue;
+        } catch (refreshError) {
+          retryable = true;
+          errors.push(`${service}: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}`);
+          continue;
+        }
+      }
       if (isRetryableApiError(e)) retryable = true;
       errors.push(`${service}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -145,14 +204,34 @@ export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, np
 }
 
 export async function fetchAllTrophies(auth: Auth, npCommunicationId: string, platform: string, npServiceName?: NpServiceName) {
-  if (npServiceName) {
-    return await getTitleTrophies(auth, npCommunicationId, "all", { npServiceName });
+  async function getTrophies() {
+    if (npServiceName) {
+      return await getTitleTrophies(auth, npCommunicationId, "all", { npServiceName });
+    }
+
+    // For PS3/PS4/Vita you must set npServiceName "trophy" [3](https://psn-api.achievements.app/api-docs/title-trophies)
+    const legacy = platform.includes("PS3") || platform.includes("PS4") || platform.includes("PSVITA") || platform.includes("VITA");
+    if (legacy) {
+      return await getTitleTrophies(auth, npCommunicationId, "all", { npServiceName: "trophy" });
+    }
+    return await getTitleTrophies(auth, npCommunicationId, "all");
   }
 
-  // For PS3/PS4/Vita you must set npServiceName "trophy" [3](https://psn-api.achievements.app/api-docs/title-trophies)
-  const legacy = platform.includes("PS3") || platform.includes("PS4") || platform.includes("PSVITA") || platform.includes("VITA");
-  if (legacy) {
-    return await getTitleTrophies(auth, npCommunicationId, "all", { npServiceName: "trophy" });
+  if (npServiceName) {
+    try {
+      return await getTrophies();
+    } catch (e) {
+      if (!isExpiredTokenError(e)) throw e;
+      await refreshAuth(auth);
+      return await getTrophies();
+    }
   }
-  return await getTitleTrophies(auth, npCommunicationId, "all");
+
+  try {
+    return await getTrophies();
+  } catch (e) {
+    if (!isExpiredTokenError(e)) throw e;
+    await refreshAuth(auth);
+    return await getTrophies();
+  }
 }
