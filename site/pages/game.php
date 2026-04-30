@@ -13,22 +13,22 @@ if (!$game) { http_response_code(404); exit("Not found"); }
 
 render_header($game["title_name"]);
 ?>
-<section class="ios-panel mb-5 overflow-hidden p-5">
+<section class="app-panel mb-5 overflow-hidden p-5">
   <div class="flex items-start gap-4">
-    <div class="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-[#e5e7eb] shadow-sm">
+    <div class="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800 shadow-sm">
       <?php if (!empty($game["icon_url"])): ?>
         <img src="<?= htmlspecialchars($game["icon_url"]) ?>" class="h-full w-full object-cover" alt="" />
       <?php endif; ?>
     </div>
     <div class="min-w-0 flex-1">
-      <div class="mb-2 inline-flex rounded-full bg-[#eef2ff] px-2.5 py-1 font-mono text-xs font-semibold text-[#3151a3]">
+      <div class="mb-2 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 font-mono text-xs font-semibold text-cyan-100">
         <?= htmlspecialchars($game["npwr"]) ?>
       </div>
-      <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl"><?= htmlspecialchars($game["title_name"]) ?></h1>
-      <div class="mt-1 text-[15px] ios-muted"><?= htmlspecialchars($game["title_platform"]) ?></div>
+      <h1 class="text-2xl font-semibold tracking-tight text-white sm:text-3xl"><?= htmlspecialchars($game["title_name"]) ?></h1>
+      <div class="mt-1 text-[15px] app-muted"><?= htmlspecialchars($game["title_platform"]) ?></div>
 
       <?php if (!empty($game["igdb_name"])): ?>
-        <div class="mt-3 text-sm ios-muted">
+        <div class="mt-3 text-sm app-muted">
           IGDB: <?= htmlspecialchars($game["igdb_name"]) ?>
           <?php if (!empty($game["first_release"])): ?>
             &middot; Release: <?= htmlspecialchars($game["first_release"]) ?>
@@ -49,11 +49,11 @@ $gr = $groups->get_result();
 <?php while ($g = $gr->fetch_assoc()): ?>
   <section class="mb-5">
     <div class="mb-2 flex items-end justify-between px-1">
-      <h2 class="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide ios-muted">
+      <h2 class="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide app-faint">
         <?= htmlspecialchars($g["group_id"]) ?> &middot; <?= htmlspecialchars($g["group_name"] ?: "Trophy Group") ?>
       </h2>
       <?php if ($g["defined_total"] !== null): ?>
-        <span class="text-xs ios-muted"><?= (int)$g["defined_total"] ?> trophies</span>
+        <span class="text-xs app-faint"><?= (int)$g["defined_total"] ?> trophies</span>
       <?php endif; ?>
     </div>
 
@@ -67,15 +67,15 @@ $gr = $groups->get_result();
 
     <div class="space-y-2">
     <?php while ($row = $tr->fetch_assoc()): ?>
-      <div class="ios-cell flex items-center gap-3 p-3">
-        <div class="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-[#e5e7eb]">
+      <div class="app-cell flex items-center gap-3 p-3">
+        <div class="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
           <?php if (!empty($row["icon_url"])): ?>
             <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
           <?php endif; ?>
         </div>
         <div class="min-w-0 flex-1">
-          <div class="truncate text-[15px] font-semibold"><?= htmlspecialchars($row["trophy_name"]) ?></div>
-          <div class="mt-0.5 text-xs ios-muted">
+          <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["trophy_name"]) ?></div>
+          <div class="mt-0.5 text-xs app-muted">
             #<?= (int)$row["trophy_id"] ?> &middot; <?= htmlspecialchars($row["trophy_type"]) ?>
             <?= ((int)$row["hidden"] === 1) ? " &middot; Hidden" : "" ?>
           </div>
