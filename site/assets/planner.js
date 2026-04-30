@@ -2,7 +2,7 @@ const STORAGE_KEY = "trophyProjectPlanner.v1";
 const state = {
   titles: new Map(),
   filter: "all",
-  collapsed: new Set(),
+  expanded: new Set(),
 };
 
 const els = {
@@ -76,7 +76,7 @@ function persist() {
       trophies: title.trophies,
       selectedIds: title.selectedIds,
     })),
-    collapsed: [...state.collapsed],
+    expanded: [...state.expanded],
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -89,7 +89,7 @@ function restore() {
     for (const title of payload.titles || []) {
       state.titles.set(title.npwr, { ...title, selectedIds: title.selectedIds || [] });
     }
-    state.collapsed = new Set(payload.collapsed || []);
+    state.expanded = new Set(payload.expanded || []);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -125,7 +125,7 @@ function renderPlanner() {
 
   els.list.innerHTML = titles.map((title) => {
     const planned = selectedTrophies(title);
-    const collapsed = state.collapsed.has(title.npwr);
+    const collapsed = !state.expanded.has(title.npwr);
     const trophyRows = title.trophies.filter((trophy) => trophyVisible(title, trophy)).map((trophy) => {
       const checked = title.selectedIds.includes(trophy.id);
       return `
@@ -210,7 +210,7 @@ async function addTitle(npwr) {
     ...title,
     selectedIds: title.trophies.map((trophy) => trophy.id),
   });
-  state.collapsed.add(title.npwr);
+  state.expanded.delete(title.npwr);
   persist();
   renderPlanner();
   markSearchResultAdded(title.npwr);
@@ -252,10 +252,10 @@ els.list.addEventListener("click", (event) => {
   const toggleButton = event.target.closest("[data-toggle-title]");
   if (toggleButton) {
     const npwr = toggleButton.dataset.toggleTitle;
-    if (state.collapsed.has(npwr)) {
-      state.collapsed.delete(npwr);
+    if (state.expanded.has(npwr)) {
+      state.expanded.delete(npwr);
     } else {
-      state.collapsed.add(npwr);
+      state.expanded.add(npwr);
     }
     persist();
     renderPlanner();
@@ -265,7 +265,7 @@ els.list.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-title]");
   if (!button) return;
   state.titles.delete(button.dataset.removeTitle);
-  state.collapsed.delete(button.dataset.removeTitle);
+  state.expanded.delete(button.dataset.removeTitle);
   persist();
   renderPlanner();
   const query = els.search.value.trim();
@@ -280,7 +280,7 @@ els.filter.addEventListener("change", () => {
 els.clearButton.addEventListener("click", () => {
   if (!confirm("Clear the current trophy plan?")) return;
   state.titles.clear();
-  state.collapsed.clear();
+  state.expanded.clear();
   persist();
   renderPlanner();
 });
@@ -301,7 +301,7 @@ els.importFile.addEventListener("change", async () => {
   if (!file) return;
   const payload = JSON.parse(await file.text());
   state.titles.clear();
-  state.collapsed = new Set(payload.collapsed || []);
+  state.expanded = new Set(payload.expanded || []);
   for (const title of payload.titles || []) state.titles.set(title.npwr, title);
   persist();
   renderPlanner();

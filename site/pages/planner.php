@@ -85,5 +85,5 @@ render_header('Trophy Planner');
   </aside>
 </section>
 
-<script src="/assets/planner.js"></script>
+<script src="/assets/planner.js?v=20260430-2"></script>
 <?php render_footer(); ?>
