@@ -150,3 +150,88 @@ function psn_search_users(string $query): array {
 
   return $accounts;
 }
+
+function psn_user_trophy_titles(string $accountId, int $limit = 100): array {
+  if (!preg_match('/^(me|\d{6,25})$/', $accountId)) {
+    throw new RuntimeException('Invalid PSN account ID.');
+  }
+
+  $accessToken = psn_access_token();
+  $titlesByNpwr = [];
+  $services = ['trophy2', 'trophy'];
+  $pageLimit = max(1, min(800, $limit));
+
+  foreach ($services as $service) {
+    $offset = 0;
+    while (count($titlesByNpwr) < $limit) {
+      $query = http_build_query([
+        'limit' => $pageLimit,
+        'offset' => $offset,
+        'npServiceName' => $service
+      ]);
+
+      $response = psn_http_request(
+        'https://m.np.playstation.com/api/trophy/v1/users/' . rawurlencode($accountId) . '/trophyTitles?' . $query,
+        'GET',
+        [
+          'Authorization' => 'Bearer ' . $accessToken,
+          'Content-Type' => 'application/json'
+        ]
+      );
+
+      $data = json_decode($response['body'], true);
+      if (!is_array($data)) {
+        throw new RuntimeException('PSN trophy list returned an invalid response.');
+      }
+
+      foreach (($data['trophyTitles'] ?? []) as $title) {
+        $npwr = (string)($title['npCommunicationId'] ?? '');
+        if ($npwr === '' || isset($titlesByNpwr[$npwr])) continue;
+        $defined = $title['definedTrophies'] ?? [];
+        $earned = $title['earnedTrophies'] ?? [];
+        $definedTotal = (int)($defined['total'] ?? 0);
+        if ($definedTotal === 0) {
+          $definedTotal = (int)($defined['platinum'] ?? 0) + (int)($defined['gold'] ?? 0) + (int)($defined['silver'] ?? 0) + (int)($defined['bronze'] ?? 0);
+        }
+        $earnedTotal = (int)($earned['total'] ?? 0);
+        if ($earnedTotal === 0) {
+          $earnedTotal = (int)($earned['platinum'] ?? 0) + (int)($earned['gold'] ?? 0) + (int)($earned['silver'] ?? 0) + (int)($earned['bronze'] ?? 0);
+        }
+        $titlesByNpwr[$npwr] = [
+          'npwr' => $npwr,
+          'service' => (string)($title['npServiceName'] ?? $service),
+          'title' => (string)($title['trophyTitleName'] ?? ''),
+          'platform' => (string)($title['trophyTitlePlatform'] ?? ''),
+          'iconUrl' => (string)($title['trophyTitleIconUrl'] ?? ''),
+          'progress' => (int)($title['progress'] ?? 0),
+          'lastUpdatedDateTime' => (string)($title['lastUpdatedDateTime'] ?? ''),
+          'defined' => [
+            'platinum' => (int)($defined['platinum'] ?? 0),
+            'gold' => (int)($defined['gold'] ?? 0),
+            'silver' => (int)($defined['silver'] ?? 0),
+            'bronze' => (int)($defined['bronze'] ?? 0),
+            'total' => $definedTotal
+          ],
+          'earned' => [
+            'platinum' => (int)($earned['platinum'] ?? 0),
+            'gold' => (int)($earned['gold'] ?? 0),
+            'silver' => (int)($earned['silver'] ?? 0),
+            'bronze' => (int)($earned['bronze'] ?? 0),
+            'total' => $earnedTotal
+          ]
+        ];
+      }
+
+      $nextOffset = $data['nextOffset'] ?? null;
+      if ($nextOffset === null || (int)$nextOffset <= $offset) break;
+      $offset = (int)$nextOffset;
+    }
+  }
+
+  $titles = array_values($titlesByNpwr);
+  usort($titles, function ($left, $right) {
+    return strcmp((string)$right['lastUpdatedDateTime'], (string)$left['lastUpdatedDateTime']);
+  });
+
+  return array_slice($titles, 0, $limit);
+}

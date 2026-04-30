@@ -21,8 +21,11 @@ render_header('PSN User Search');
   </form>
 </section>
 
-<section id="psn-user-results" class="space-y-2">
-  <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm app-muted">Search for a PSN user to see matching profiles.</div>
+<section class="grid gap-5 lg:grid-cols-[24rem_1fr]">
+  <div id="psn-user-results" class="space-y-2">
+    <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm app-muted">Search for a PSN user to see matching profiles.</div>
+  </div>
+  <div id="psn-user-titles" class="space-y-2"></div>
 </section>
 
 <script src="/assets/psn-user-search.js"></script>
