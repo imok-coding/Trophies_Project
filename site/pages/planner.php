@@ -68,7 +68,7 @@ render_header('Trophy Planner');
         <input id="planner-search" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/40" placeholder="Search title or NPWR" autocomplete="off" />
         <button class="rounded-lg bg-cyan-300 px-3 py-2 text-sm font-bold text-slate-950 transition hover:bg-cyan-200" type="submit">Find</button>
       </form>
-      <div id="planner-search-results" class="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+      <div id="planner-search-results" class="app-scrollbar mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
         <div class="rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm app-muted">Try searching for a title or NPWR ID.</div>
       </div>
     </section>

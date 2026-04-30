@@ -41,6 +41,23 @@ function render_header(string $title = "Trophy Project") { ?>
     }
     .app-muted { color: rgba(203, 213, 225, 0.68); }
     .app-faint { color: rgba(148, 163, 184, 0.62); }
+    .app-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(34, 211, 238, 0.45) rgba(15, 23, 42, 0.45);
+    }
+    .app-scrollbar::-webkit-scrollbar { width: 0.65rem; }
+    .app-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.45);
+      border-radius: 999px;
+    }
+    .app-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(34, 211, 238, 0.62), rgba(168, 85, 247, 0.42));
+      border: 2px solid rgba(15, 23, 42, 0.80);
+      border-radius: 999px;
+    }
+    .app-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(103, 232, 249, 0.78), rgba(192, 132, 252, 0.58));
+    }
   </style>
 </head>
 <body class="min-h-screen antialiased">
