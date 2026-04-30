@@ -172,8 +172,8 @@ render_header("Trophy Project");
   </article>
 </section>
 
-<section class="grid gap-5 lg:grid-cols-[1fr_22rem]">
-  <div class="space-y-5">
+<section class="space-y-5">
+  <div class="grid gap-5 xl:grid-cols-2">
   <section class="app-panel overflow-hidden">
     <div class="flex items-center justify-between border-b border-white/10 bg-cyan-300/10 px-4 py-3">
       <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Newest Trophy Lists</h2>
@@ -243,7 +243,7 @@ render_header("Trophy Project");
   </section>
   </div>
 
-  <aside class="space-y-5">
+  <aside class="grid gap-5 lg:grid-cols-2">
     <section class="app-panel overflow-hidden">
       <div class="border-b border-white/10 bg-cyan-300/10 px-4 py-3">
         <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Platform Coverage</h2>
