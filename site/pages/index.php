@@ -2,11 +2,28 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+function primary_platform(string $platforms): string {
+  $tokens = preg_split('/[,\s\/]+/', strtoupper($platforms)) ?: [];
+  $tokens = array_values(array_filter(array_map('trim', $tokens)));
+  $precedence = ["PS5", "PS4", "PS3", "PSVITA", "VITA", "PC"];
+
+  foreach ($precedence as $platform) {
+    if (in_array($platform, $tokens, true)) {
+      return $platform === "VITA" ? "PSVITA" : $platform;
+    }
+  }
+
+  return $tokens[0] ?? "";
+}
+
 $db = db_connect();
 $gamesCount = (int)$db->query("SELECT COUNT(*) AS total FROM games")->fetch_assoc()["total"];
 $trophiesCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophies")->fetch_assoc()["total"];
 $groupsCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophy_groups")->fetch_assoc()["total"];
-$platformCount = (int)$db->query("SELECT COUNT(DISTINCT title_platform) AS total FROM games WHERE title_platform <> ''")->fetch_assoc()["total"];
 
 $recentRes = $db->query("
   SELECT
@@ -37,18 +54,20 @@ while ($row = $recentRes->fetch_assoc()) {
 }
 
 $platformRes = $db->query("
-  SELECT title_platform, COUNT(*) AS total
+  SELECT title_platform
   FROM games
   WHERE title_platform <> ''
-  GROUP BY title_platform
-  ORDER BY total DESC, title_platform
-  LIMIT 6
 ");
 
-$platforms = [];
+$platformCounts = [];
 while ($row = $platformRes->fetch_assoc()) {
-  $platforms[] = $row;
+  $platform = primary_platform((string)$row["title_platform"]);
+  if ($platform === "") continue;
+  $platformCounts[$platform] = ($platformCounts[$platform] ?? 0) + 1;
 }
+arsort($platformCounts);
+$platforms = array_slice($platformCounts, 0, 6, true);
+$platformCount = count($platformCounts);
 
 $heroIcon = "";
 foreach ($recent as $row) {
@@ -118,7 +137,7 @@ render_header("Trophy Project");
     <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($trophiesCount) ?></div>
   </article>
   <article class="app-panel p-4">
-    <div class="text-xs font-semibold uppercase tracking-wide app-faint">Trophy Groups</div>
+    <div class="text-xs font-semibold uppercase tracking-wide app-faint">DLC</div>
     <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($groupsCount) ?></div>
   </article>
   <article class="app-panel p-4">
@@ -145,7 +164,7 @@ render_header("Trophy Project");
             <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["title_name"]) ?></div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
               <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($row["npwr"]) ?></span>
-              <span><?= htmlspecialchars($row["title_platform"]) ?></span>
+              <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
               <span><?= number_format((int)$row["trophy_count"]) ?> trophies</span>
             </div>
             <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
@@ -170,12 +189,12 @@ render_header("Trophy Project");
         <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Platform Coverage</h2>
       </div>
       <div class="space-y-3 p-4">
-        <?php foreach ($platforms as $platform): ?>
-          <?php $percent = $gamesCount > 0 ? max(4, min(100, ((int)$platform["total"] / $gamesCount) * 100)) : 0; ?>
+        <?php foreach ($platforms as $platform => $total): ?>
+          <?php $percent = $gamesCount > 0 ? max(4, min(100, ((int)$total / $gamesCount) * 100)) : 0; ?>
           <div>
             <div class="mb-1 flex items-center justify-between gap-3 text-sm">
-              <span class="font-semibold text-white"><?= htmlspecialchars($platform["title_platform"]) ?></span>
-              <span class="text-xs app-muted"><?= number_format((int)$platform["total"]) ?></span>
+              <span class="font-semibold text-white"><?= htmlspecialchars($platform) ?></span>
+              <span class="text-xs app-muted"><?= number_format((int)$total) ?></span>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-white/[0.07]">
               <div class="h-full rounded-full bg-cyan-300" style="width: <?= $percent ?>%"></div>
