@@ -47,6 +47,19 @@ function parseInfinityFreeCookie(html: string): string | undefined {
   return `__test=${cookieValue}`;
 }
 
+function summarizeBody(body: string) {
+  const title = body.match(/<title[^>]*>(.*?)<\/title>/is)?.[1]
+    ?? body.match(/<h1[^>]*>(.*?)<\/h1>/is)?.[1];
+  const text = (title ?? body)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return text.slice(0, 240);
+}
+
 export async function getAntiBotCookie(url: string): Promise<string | undefined> {
   const res = await fetchWithRetry(url, {
     headers: { "User-Agent": "Mozilla/5.0" }
@@ -73,10 +86,10 @@ export async function postIngest(url: string, secret: string, payload: unknown) 
 
   const txt = await res.text().catch(() => "");
   if (!res.ok) {
-    throw new Error(`Ingest failed ${res.status}: ${txt}`);
+    throw new Error(`Ingest failed ${res.status}: ${summarizeBody(txt)}`);
   }
 
   if (txt.trim() !== "OK") {
-    throw new Error(`Ingest returned unexpected response: ${txt.slice(0, 200)}`);
+    throw new Error(`Ingest returned unexpected response: ${summarizeBody(txt)}`);
   }
 }

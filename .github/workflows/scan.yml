@@ -2,6 +2,7 @@ name: Scan NPWR shards
 
 on:
   schedule:
+    - cron: '0 0,6,12,18 * * *'
   workflow_dispatch:
     inputs:
       npwrs:
@@ -39,12 +40,12 @@ jobs:
 
       - name: Scan shard
         working-directory: scanner
-        if: ${{ (inputs.npwrs == '' && inputs.psn_name == '') || matrix.shard == 0 }}
+        if: ${{ inputs.npwrs == '' || matrix.shard == 0 }}
         env:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
-          BATCH_SIZE: ${{ '5000' }}
-          LOG_EVERY: 25
+          BATCH_SIZE: 5000
+          START_FROM_BEGINNING: true
           NPWRS: ${{ inputs.npwrs }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}

@@ -21,6 +21,21 @@ export type UserTrophyTitle = {
   hasTrophyGroups?: boolean;
 };
 
+export class TitleLookupError extends Error {
+  constructor(message: string, public retryable: boolean) {
+    super(message);
+    this.name = "TitleLookupError";
+  }
+}
+
+function isRetryableApiError(error: any) {
+  const status = Number(error?.status ?? error?.code ?? error?.httpStatus);
+  if (status === 429 || status >= 500) return true;
+
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  return message.includes("rate") || message.includes("timeout") || message.includes("temporar");
+}
+
 export async function authFromRefresh(refreshToken: string): Promise<Auth> {
   let tokens = await exchangeRefreshTokenForAuthTokens(refreshToken);
 
@@ -92,16 +107,34 @@ export async function fetchUserTrophyTitles(auth: Auth, accountId: string): Prom
 }
 
 export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, npServiceName?: NpServiceName) {
-  // Existence check + title/platform via trophy groups [3](https://psn-api.achievements.app/api-docs/title-trophies)
-  if (npServiceName) {
-    return await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName });
+  const services: NpServiceName[] = npServiceName ? [npServiceName] : ["trophy", "trophy2"];
+  const errors: string[] = [];
+  let retryable = false;
+
+  for (const service of services) {
+    try {
+      const groups = await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: service });
+      const raw = groups as any;
+      if (raw.error) {
+        if (isRetryableApiError(raw.error)) retryable = true;
+        errors.push(`${service}: ${raw.error.message ?? JSON.stringify(raw.error)}`);
+        continue;
+      }
+
+      if (!raw.trophyTitleName) {
+        errors.push(`${service}: missing trophy title name`);
+        continue;
+      }
+
+      raw.__resolvedNpServiceName = service;
+      return groups;
+    } catch (e) {
+      retryable = true;
+      errors.push(`${service}: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
-  try {
-    return await getTitleTrophyGroups(auth, npCommunicationId);
-  } catch (e) {
-    return await getTitleTrophyGroups(auth, npCommunicationId, { npServiceName: "trophy" });
-  }
+  throw new TitleLookupError(errors.length > 0 ? errors.join("; ") : "No title group response", retryable);
 }
 
 export async function fetchAllTrophies(auth: Auth, npCommunicationId: string, platform: string, npServiceName?: NpServiceName) {
