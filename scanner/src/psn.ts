@@ -29,11 +29,13 @@ export class TitleLookupError extends Error {
 }
 
 function isRetryableApiError(error: any) {
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  if (message.includes("not found") || message.includes("resource not found")) return false;
+  if (message.includes("missing trophy title name")) return false;
+
   const status = Number(error?.status ?? error?.code ?? error?.httpStatus);
   if (status === 429 || status >= 500) return true;
 
-  const message = String(error?.message ?? error ?? "").toLowerCase();
-  if (message.includes("not found") || message.includes("resource not found")) return false;
   return message.includes("rate") || message.includes("timeout") || message.includes("temporar");
 }
 
@@ -135,7 +137,11 @@ export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, np
     }
   }
 
-  throw new TitleLookupError(errors.length > 0 ? errors.join("; ") : "No title group response", retryable);
+  const message = errors.length > 0 ? errors.join("; ") : "No title group response";
+  const onlyMissing = errors.length > 0 && errors.every(error =>
+    /resource not found|not found|missing trophy title name/i.test(error)
+  );
+  throw new TitleLookupError(message, retryable && !onlyMissing);
 }
 
 export async function fetchAllTrophies(auth: Auth, npCommunicationId: string, platform: string, npServiceName?: NpServiceName) {
