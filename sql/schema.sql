@@ -55,3 +55,13 @@ CREATE TABLE scan_state (
   scan_cursor INT NOT NULL DEFAULT 0,
   updated_utc DATETIME NOT NULL
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE delisted_npwrs (
+  id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+  npwr            VARCHAR(16) NOT NULL,
+  reason          VARCHAR(255) NULL,
+  removed_utc     DATETIME NOT NULL,
+
+  INDEX idx_npwr (npwr),
+  INDEX idx_removed (removed_utc)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

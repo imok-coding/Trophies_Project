@@ -70,7 +70,7 @@ export async function getAntiBotCookie(url: string): Promise<string | undefined>
 
 export type IngestResponse = {
   ok: boolean;
-  results?: Record<string, "inserted" | "updated">;
+  results?: Record<string, "inserted" | "updated" | "removed" | "invalid">;
 };
 
 export async function postIngest(url: string, secret: string, payload: unknown): Promise<IngestResponse> {

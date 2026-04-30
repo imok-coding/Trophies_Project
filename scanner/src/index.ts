@@ -63,12 +63,14 @@ async function main() {
     games: any[],
     groups: any[],
     trophies: any[],
-    nextCursor?: number
+    nextCursor?: number,
+    removed?: any[]
   ) {
     const payload: any = {
       games,
       groups,
-      trophies
+      trophies,
+      removed: removed ?? []
     };
 
     if (nextCursor != null) {
@@ -206,9 +208,17 @@ async function main() {
       }
 
       invalidCount++;
-      logNpwrResult(np, "Invalid");
       if (explicitNpwrs.length === 0 && !PSN_NAME && nextCursor != null) {
-        await ingestScanResult([], [], [], nextCursor);
+        const ingest = await ingestScanResult(
+          [],
+          [],
+          [],
+          nextCursor,
+          [{ npwr: np, reason: errorSummary(e) }]
+        );
+        logNpwrResult(np, ingest.results?.[np] === "removed" ? "Removed" : "Invalid");
+      } else {
+        logNpwrResult(np, "Invalid");
       }
 
       await sleep(100);

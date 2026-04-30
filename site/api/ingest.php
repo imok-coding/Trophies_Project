@@ -19,6 +19,37 @@ $db->begin_transaction();
 try {
   $results = [];
 
+  // Removed/delisted games. The delisted table intentionally allows repeat NPWR entries.
+  $stmtExistingGame = $db->prepare("SELECT 1 FROM games WHERE npwr=? LIMIT 1");
+  $stmtDelisted = $db->prepare("
+    INSERT INTO delisted_npwrs (npwr, reason, removed_utc)
+    VALUES (?, ?, UTC_TIMESTAMP())
+  ");
+  $stmtDeleteGame = $db->prepare("DELETE FROM games WHERE npwr=?");
+
+  foreach (($data["removed"] ?? []) as $r) {
+    $npwr = (string)($r["npwr"] ?? "");
+    if ($npwr === "") {
+      continue;
+    }
+
+    $reason = (string)($r["reason"] ?? "No longer found by PSN trophy lookup");
+    $stmtExistingGame->bind_param("s", $npwr);
+    $stmtExistingGame->execute();
+    $exists = $stmtExistingGame->get_result()->num_rows > 0;
+
+    if ($exists) {
+      $stmtDelisted->bind_param("ss", $npwr, $reason);
+      $stmtDelisted->execute();
+
+      $stmtDeleteGame->bind_param("s", $npwr);
+      $stmtDeleteGame->execute();
+      $results[$npwr] = "removed";
+    } else {
+      $results[$npwr] = "invalid";
+    }
+  }
+
   // Games upsert
   $stmtGame = $db->prepare("
     INSERT INTO games (npwr, title_name, title_platform, trophy_set_ver, has_groups, icon_url,
@@ -36,7 +67,6 @@ try {
       last_seen_utc=UTC_TIMESTAMP(),
       last_scan_utc=UTC_TIMESTAMP()
   ");
-  $stmtExistingGame = $db->prepare("SELECT 1 FROM games WHERE npwr=? LIMIT 1");
 
   foreach (($data["games"] ?? []) as $g) {
     $npwr = (string)($g["npwr"] ?? "");
