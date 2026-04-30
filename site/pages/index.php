@@ -201,10 +201,6 @@ render_header("Trophy Project");
               <span>B <?= number_format(trophy_stat($row, "bronze")) ?></span>
             </div>
           </div>
-          <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
-            <div>Scanned</div>
-            <div><?= htmlspecialchars(substr((string)$row["first_seen_utc"], 0, 10)) ?></div>
-          </div>
         </a>
       <?php endforeach; ?>
     </div>
@@ -232,10 +228,6 @@ render_header("Trophy Project");
               <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
               <span><?= number_format((int)($row["trophy_count"] ?: $row["defined_total"])) ?> trophies</span>
             </div>
-          </div>
-          <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
-            <div>Scanned</div>
-            <div><?= htmlspecialchars(substr((string)$row["first_seen_utc"], 0, 10)) ?></div>
           </div>
         </a>
       <?php endforeach; ?>
