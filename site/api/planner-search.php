@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/search.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -13,6 +14,9 @@ if ($q === '') {
 
 $db = db_connect();
 $like = '%' . $q . '%';
+$normalizedLike = '%' . normalize_search_term($q) . '%';
+$normalizedTitle = normalized_title_sql('g.title_name');
+$normalizedNpwr = normalized_title_sql('g.npwr');
 $stmt = $db->prepare("
   SELECT
     g.npwr,
@@ -26,12 +30,15 @@ $stmt = $db->prepare("
     SUM(t.trophy_type='bronze') AS bronze
   FROM games g
   LEFT JOIN trophies t ON t.npwr = g.npwr
-  WHERE g.title_name LIKE ? OR g.npwr LIKE ?
+  WHERE g.title_name LIKE ?
+    OR g.npwr LIKE ?
+    OR $normalizedTitle LIKE ?
+    OR $normalizedNpwr LIKE ?
   GROUP BY g.npwr, g.title_name, g.title_platform, g.icon_url
   ORDER BY g.title_name
   LIMIT ?
 ");
-$stmt->bind_param('ssi', $like, $like, $limit);
+$stmt->bind_param('ssssi', $like, $like, $normalizedLike, $normalizedLike, $limit);
 $stmt->execute();
 $res = $stmt->get_result();
 

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/search.php';
 
 $q = trim($_GET["q"] ?? "");
 $db = db_connect();
@@ -17,11 +18,17 @@ render_header("Search");
 <?php else: ?>
   <?php
     $like = "%" . $q . "%";
+    $normalizedLike = "%" . normalize_search_term($q) . "%";
+    $normalizedTitle = normalized_title_sql("title_name");
+    $normalizedNpwr = normalized_title_sql("npwr");
     $stmt = $db->prepare("SELECT npwr, title_name, title_platform, icon_url
                           FROM games
-                          WHERE title_name LIKE ? OR npwr LIKE ?
-                          ORDER BY last_seen_utc DESC LIMIT 100");
-    $stmt->bind_param("ss", $like, $like);
+                          WHERE title_name LIKE ?
+                            OR npwr LIKE ?
+                            OR $normalizedTitle LIKE ?
+                            OR $normalizedNpwr LIKE ?
+                          ORDER BY title_name LIMIT 100");
+    $stmt->bind_param("ssss", $like, $like, $normalizedLike, $normalizedLike);
     $stmt->execute();
     $res = $stmt->get_result();
   ?>
