@@ -159,6 +159,14 @@ function renderPlanner() {
   }).join("");
 }
 
+function markSearchResultAdded(npwr) {
+  const button = [...els.results.querySelectorAll("[data-add-title]")].find((item) => item.dataset.addTitle === npwr);
+  if (!button) return;
+  button.textContent = "Added";
+  button.disabled = true;
+  button.className = "cursor-not-allowed rounded-lg bg-slate-700 px-2 py-1 text-xs font-bold text-slate-400";
+}
+
 async function searchCatalog(query) {
   els.results.innerHTML = `<div class="rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm app-muted">Searching...</div>`;
   const response = await fetch(`/api/planner-search.php?q=${encodeURIComponent(query)}&limit=25`);
@@ -189,6 +197,7 @@ async function searchCatalog(query) {
 
 async function addTitle(npwr) {
   if (state.titles.has(npwr)) {
+    markSearchResultAdded(npwr);
     renderPlanner();
     return;
   }
@@ -201,9 +210,10 @@ async function addTitle(npwr) {
     ...title,
     selectedIds: title.trophies.map((trophy) => trophy.id),
   });
-  state.collapsed.delete(title.npwr);
+  state.collapsed.add(title.npwr);
   persist();
   renderPlanner();
+  markSearchResultAdded(title.npwr);
   const query = els.search.value.trim();
   if (query) searchCatalog(query).catch(() => {});
 }
@@ -219,6 +229,9 @@ els.form.addEventListener("submit", (event) => {
 els.results.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add-title]");
   if (!button) return;
+  button.textContent = "Adding...";
+  button.disabled = true;
+  button.className = "cursor-wait rounded-lg bg-slate-700 px-2 py-1 text-xs font-bold text-slate-300";
   addTitle(button.dataset.addTitle).catch((error) => alert(error.message));
 });
 
