@@ -21,6 +21,7 @@ function env(name: string, fallback?: string) {
 const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
+const SCAN_INTERVAL_MS = Number(env("SCAN_INTERVAL_MS", "600"));
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -204,7 +205,7 @@ async function main() {
           throw e;
         }
 
-        await sleep(100);
+        await sleep(SCAN_INTERVAL_MS);
         continue;
       }
 
@@ -222,7 +223,7 @@ async function main() {
         logNpwrResult(np, "Invalid");
       }
 
-      await sleep(100);
+      await sleep(SCAN_INTERVAL_MS);
       continue;
     }
 
@@ -239,7 +240,7 @@ async function main() {
       pendingTitleByNpwr.set(np, String(gameRows[0]?.title_name ?? "Unknown"));
     }
 
-    await sleep(250);
+    await sleep(SCAN_INTERVAL_MS);
   }
 
   if (explicitNpwrs.length > 0 || PSN_NAME) {
