@@ -73,7 +73,7 @@ render_header("Trophy Project");
   <div class="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
     <div>
       <div class="mb-5 flex items-center gap-4">
-        <img src="/assets/trophy-project-logo.webp" class="h-20 w-20 rounded-lg border border-cyan-300/25 object-cover shadow-[0_0_46px_rgba(34,211,238,0.24)]" alt="" />
+        <img src="/assets/logo.webp" class="h-20 w-20 rounded-lg border border-cyan-300/25 object-cover shadow-[0_0_46px_rgba(34,211,238,0.24)]" alt="" />
         <div>
           <div class="text-[13px] font-semibold uppercase tracking-wide text-cyan-300">PlayStation Trophy Index</div>
           <h1 class="mt-1 max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">Trophy Project</h1>
