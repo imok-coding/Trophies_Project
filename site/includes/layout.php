@@ -64,7 +64,9 @@ function render_header(string $title = "Trophy Project") { ?>
   <header class="app-glass sticky top-0 z-50">
     <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
       <a href="/pages/index.php" class="flex min-w-0 items-center gap-3">
-        <span class="grid h-9 w-9 place-items-center rounded-lg bg-cyan-400 text-base font-black text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.28)]">T</span>
+        <span class="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-cyan-300/25 bg-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.24)]">
+          <img src="/assets/trophy-project-logo.webp" class="h-full w-full object-cover" alt="" />
+        </span>
         <span class="hidden text-[17px] font-semibold tracking-tight text-white sm:inline">Trophy Project</span>
       </a>
 
