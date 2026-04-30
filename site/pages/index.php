@@ -187,9 +187,9 @@ render_header("Trophy Project");
     <div class="divide-y divide-white/10">
       <?php foreach ($recent as $row): ?>
         <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
-          <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
+          <div class="grid h-16 w-16 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
             <?php if (!empty($row["icon_url"])): ?>
-              <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
+              <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />
             <?php endif; ?>
           </div>
           <div class="min-w-0 flex-1">
@@ -220,9 +220,9 @@ render_header("Trophy Project");
       <?php foreach ($dlc as $row): ?>
         <?php $icon = $row["group_icon_url"] ?: $row["game_icon_url"]; ?>
         <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
-          <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
+          <div class="grid h-16 w-16 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
             <?php if (!empty($icon)): ?>
-              <img src="<?= htmlspecialchars($icon) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
+              <img src="<?= htmlspecialchars($icon) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />
             <?php endif; ?>
           </div>
           <div class="min-w-0 flex-1">
