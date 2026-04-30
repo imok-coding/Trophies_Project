@@ -62,6 +62,10 @@ function render_header(string $title = "Trophy Project") { ?>
           />
         </label>
       </form>
+
+      <a href="/pages/planner.php" class="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/15">
+        Planner
+      </a>
     </div>
   </header>
 
