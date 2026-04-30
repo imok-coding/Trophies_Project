@@ -31,21 +31,21 @@ $recentRes = $db->query("
     g.title_name,
     g.title_platform,
     g.icon_url,
-    g.last_seen_utc,
+    g.first_seen_utc,
     COUNT(t.trophy_id) AS trophy_count,
     SUM(t.trophy_type='platinum') AS platinum,
     SUM(t.trophy_type='gold') AS gold,
     SUM(t.trophy_type='silver') AS silver,
     SUM(t.trophy_type='bronze') AS bronze
   FROM (
-    SELECT npwr, title_name, title_platform, icon_url, last_seen_utc
+    SELECT npwr, title_name, title_platform, icon_url, first_seen_utc
     FROM games
-    ORDER BY last_seen_utc DESC
+    ORDER BY first_seen_utc DESC
     LIMIT 12
   ) g
   LEFT JOIN trophies t ON t.npwr = g.npwr
-  GROUP BY g.npwr, g.title_name, g.title_platform, g.icon_url, g.last_seen_utc
-  ORDER BY g.last_seen_utc DESC
+  GROUP BY g.npwr, g.title_name, g.title_platform, g.icon_url, g.first_seen_utc
+  ORDER BY g.first_seen_utc DESC
 ");
 
 $recent = [];
@@ -63,14 +63,14 @@ $dlcRes = $db->query("
     g.title_name,
     g.title_platform,
     g.icon_url AS game_icon_url,
-    g.last_seen_utc,
+    g.first_seen_utc,
     COUNT(t.trophy_id) AS trophy_count
   FROM trophy_groups tg
   INNER JOIN games g ON g.npwr = tg.npwr
   LEFT JOIN trophies t ON t.npwr = tg.npwr AND t.group_id = tg.group_id
   WHERE LOWER(tg.group_id) <> 'default'
-  GROUP BY tg.npwr, tg.group_id, tg.group_name, tg.icon_url, tg.defined_total, g.title_name, g.title_platform, g.icon_url, g.last_seen_utc
-  ORDER BY g.last_seen_utc DESC, tg.group_id DESC
+  GROUP BY tg.npwr, tg.group_id, tg.group_name, tg.icon_url, tg.defined_total, g.title_name, g.title_platform, g.icon_url, g.first_seen_utc
+  ORDER BY g.first_seen_utc DESC, tg.group_id DESC
   LIMIT 12
 ");
 
@@ -202,8 +202,8 @@ render_header("Trophy Project");
             </div>
           </div>
           <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
-            <div>Updated</div>
-            <div><?= htmlspecialchars(substr((string)$row["last_seen_utc"], 0, 10)) ?></div>
+            <div>Scanned</div>
+            <div><?= htmlspecialchars(substr((string)$row["first_seen_utc"], 0, 10)) ?></div>
           </div>
         </a>
       <?php endforeach; ?>
@@ -234,8 +234,8 @@ render_header("Trophy Project");
             </div>
           </div>
           <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
-            <div>Updated</div>
-            <div><?= htmlspecialchars(substr((string)$row["last_seen_utc"], 0, 10)) ?></div>
+            <div>Scanned</div>
+            <div><?= htmlspecialchars(substr((string)$row["first_seen_utc"], 0, 10)) ?></div>
           </div>
         </a>
       <?php endforeach; ?>
