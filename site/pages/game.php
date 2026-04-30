@@ -13,30 +13,31 @@ if (!$game) { http_response_code(404); exit("Not found"); }
 
 render_header($game["title_name"]);
 ?>
-<div class="flex gap-4 items-start">
-  <div class="w-24 h-24 rounded-2xl bg-zinc-800 overflow-hidden">
-    <?php if (!empty($game["icon_url"])): ?>
-      <img src="<?= htmlspecialchars($game["icon_url"]) ?>" class="w-full h-full object-cover" />
-    <?php endif; ?>
-  </div>
-  <div class="min-w-0">
-    <h1 class="text-2xl font-semibold"><?= htmlspecialchars($game["title_name"]) ?></h1>
-    <div class="text-sm text-zinc-400 mt-1">
-      <?= htmlspecialchars($game["npwr"]) ?> • <?= htmlspecialchars($game["title_platform"]) ?>
+<section class="ios-panel mb-5 overflow-hidden p-5">
+  <div class="flex items-start gap-4">
+    <div class="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-[#e5e7eb] shadow-sm">
+      <?php if (!empty($game["icon_url"])): ?>
+        <img src="<?= htmlspecialchars($game["icon_url"]) ?>" class="h-full w-full object-cover" alt="" />
+      <?php endif; ?>
     </div>
-
-    <?php if (!empty($game["igdb_name"])): ?>
-      <div class="text-sm text-zinc-300 mt-2">
-        IGDB: <?= htmlspecialchars($game["igdb_name"]) ?>
-        <?php if (!empty($game["first_release"])): ?>
-          • Release: <?= htmlspecialchars($game["first_release"]) ?>
-        <?php endif; ?>
+    <div class="min-w-0 flex-1">
+      <div class="mb-2 inline-flex rounded-full bg-[#eef2ff] px-2.5 py-1 font-mono text-xs font-semibold text-[#3151a3]">
+        <?= htmlspecialchars($game["npwr"]) ?>
       </div>
-    <?php endif; ?>
-  </div>
-</div>
+      <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl"><?= htmlspecialchars($game["title_name"]) ?></h1>
+      <div class="mt-1 text-[15px] ios-muted"><?= htmlspecialchars($game["title_platform"]) ?></div>
 
-<hr class="my-6 border-zinc-800" />
+      <?php if (!empty($game["igdb_name"])): ?>
+        <div class="mt-3 text-sm ios-muted">
+          IGDB: <?= htmlspecialchars($game["igdb_name"]) ?>
+          <?php if (!empty($game["first_release"])): ?>
+            &middot; Release: <?= htmlspecialchars($game["first_release"]) ?>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
+</section>
 
 <?php
 $groups = $db->prepare("SELECT * FROM trophy_groups WHERE npwr=? ORDER BY group_id");
@@ -46,11 +47,14 @@ $gr = $groups->get_result();
 ?>
 
 <?php while ($g = $gr->fetch_assoc()): ?>
-  <div class="mb-6">
-    <div class="flex items-center justify-between">
-      <div class="font-semibold">
-        <?= htmlspecialchars($g["group_id"]) ?> — <?= htmlspecialchars($g["group_name"] ?: "Trophy Group") ?>
-      </div>
+  <section class="mb-5">
+    <div class="mb-2 flex items-end justify-between px-1">
+      <h2 class="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide ios-muted">
+        <?= htmlspecialchars($g["group_id"]) ?> &middot; <?= htmlspecialchars($g["group_name"] ?: "Trophy Group") ?>
+      </h2>
+      <?php if ($g["defined_total"] !== null): ?>
+        <span class="text-xs ios-muted"><?= (int)$g["defined_total"] ?> trophies</span>
+      <?php endif; ?>
     </div>
 
     <?php
@@ -61,25 +65,25 @@ $gr = $groups->get_result();
       $tr = $t->get_result();
     ?>
 
-    <div class="mt-3 space-y-2">
+    <div class="space-y-2">
     <?php while ($row = $tr->fetch_assoc()): ?>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-zinc-800 overflow-hidden">
+      <div class="ios-cell flex items-center gap-3 p-3">
+        <div class="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-[#e5e7eb]">
           <?php if (!empty($row["icon_url"])): ?>
-            <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="w-full h-full object-cover" />
+            <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
           <?php endif; ?>
         </div>
         <div class="min-w-0 flex-1">
-          <div class="font-medium truncate"><?= htmlspecialchars($row["trophy_name"]) ?></div>
-          <div class="text-xs text-zinc-400">
-            #<?= (int)$row["trophy_id"] ?> • <?= htmlspecialchars($row["trophy_type"]) ?>
-            <?= ((int)$row["hidden"] === 1) ? " • Hidden" : "" ?>
+          <div class="truncate text-[15px] font-semibold"><?= htmlspecialchars($row["trophy_name"]) ?></div>
+          <div class="mt-0.5 text-xs ios-muted">
+            #<?= (int)$row["trophy_id"] ?> &middot; <?= htmlspecialchars($row["trophy_type"]) ?>
+            <?= ((int)$row["hidden"] === 1) ? " &middot; Hidden" : "" ?>
           </div>
         </div>
       </div>
     <?php endwhile; ?>
     </div>
-  </div>
+  </section>
 <?php endwhile; ?>
 
 <?php render_footer(); ?>
