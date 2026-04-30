@@ -198,13 +198,18 @@ async function main() {
         });
       }
     } catch (e) {
-      const retryable = (e instanceof TitleLookupError && e.retryable) || e instanceof PsnRetryableError;
-      if (retryable) {
+      const retryableTitleLookup = e instanceof TitleLookupError && e.retryable;
+      if (retryableTitleLookup) {
+        logNpwrResult(np, `Error - ${errorSummary(e).replaceAll("\n", " ")}`);
+        await sleep(SCAN_INTERVAL_MS);
+        continue;
+      }
+
+      if (e instanceof PsnRetryableError) {
         logNpwrResult(np, `Error - ${errorSummary(e).replaceAll("\n", " ")}`);
         if (explicitNpwrs.length === 0 && !PSN_NAME) {
           throw e;
         }
-
         await sleep(SCAN_INTERVAL_MS);
         continue;
       }
