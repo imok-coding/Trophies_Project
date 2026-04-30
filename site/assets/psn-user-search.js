@@ -77,7 +77,7 @@ async function loadTitles(user) {
 function renderUsers(users) {
   titlesPanel.innerHTML = "";
   if (!users.length) {
-    renderMessage(results, "No PSN users found.");
+    renderMessage(results, "User does not exist", true);
     return;
   }
 
@@ -122,7 +122,7 @@ form.addEventListener("submit", async (event) => {
   const query = input.value.trim();
   if (!query) return;
 
-  renderMessage(results, "Searching PSN...");
+  renderMessage(results, "Looking up PSN user...");
   titlesPanel.innerHTML = "";
   try {
     const response = await fetch(`/api/psn-user-search.php?q=${encodeURIComponent(query)}`);

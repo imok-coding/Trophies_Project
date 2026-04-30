@@ -17,7 +17,14 @@ if (strlen($q) > 64) {
 }
 
 try {
-  echo json_encode(['ok' => true, 'results' => psn_search_users($q)]);
+  $user = psn_find_exact_user($q);
+  if ($user === null) {
+    http_response_code(404);
+    echo json_encode(['ok' => false, 'error' => 'User does not exist']);
+    exit;
+  }
+
+  echo json_encode(['ok' => true, 'user' => $user, 'results' => [$user]]);
 } catch (Throwable $e) {
   http_response_code(503);
   echo json_encode(['ok' => false, 'error' => $e->getMessage()]);

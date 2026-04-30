@@ -151,6 +151,16 @@ function psn_search_users(string $query): array {
   return $accounts;
 }
 
+function psn_find_exact_user(string $onlineId): ?array {
+  foreach (psn_search_users($onlineId) as $account) {
+    if (strcasecmp((string)$account['onlineId'], $onlineId) === 0) {
+      return $account;
+    }
+  }
+
+  return null;
+}
+
 function psn_user_trophy_titles(string $accountId, int $limit = 100): array {
   if (!preg_match('/^(me|\d{6,25})$/', $accountId)) {
     throw new RuntimeException('Invalid PSN account ID.');
