@@ -2,6 +2,7 @@ const STORAGE_KEY = "trophyProjectPlanner.v1";
 const state = {
   titles: new Map(),
   filter: "all",
+  collapsed: new Set(),
 };
 
 const els = {
@@ -75,6 +76,7 @@ function persist() {
       trophies: title.trophies,
       selectedIds: title.selectedIds,
     })),
+    collapsed: [...state.collapsed],
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -87,6 +89,7 @@ function restore() {
     for (const title of payload.titles || []) {
       state.titles.set(title.npwr, { ...title, selectedIds: title.selectedIds || [] });
     }
+    state.collapsed = new Set(payload.collapsed || []);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -116,8 +119,13 @@ function renderPlanner() {
     return;
   }
 
-  els.list.innerHTML = [...state.titles.values()].map((title) => {
+  const titles = [...state.titles.values()].sort((left, right) =>
+    String(left.title || "").localeCompare(String(right.title || ""), undefined, { sensitivity: "base" })
+  );
+
+  els.list.innerHTML = titles.map((title) => {
     const planned = selectedTrophies(title);
+    const collapsed = state.collapsed.has(title.npwr);
     const trophyRows = title.trophies.filter((trophy) => trophyVisible(title, trophy)).map((trophy) => {
       const checked = title.selectedIds.includes(trophy.id);
       return `
@@ -135,6 +143,9 @@ function renderPlanner() {
     return `
       <article class="app-cell p-3">
         <div class="mb-3 flex items-center gap-3">
+          <button class="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.05] text-lg font-semibold text-white" data-toggle-title="${escapeHtml(title.npwr)}" type="button" aria-label="${collapsed ? "Expand" : "Collapse"} ${escapeHtml(title.title)}">
+            ${collapsed ? "+" : "-"}
+          </button>
           <div class="h-14 w-14 overflow-hidden rounded-lg bg-slate-800">${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="h-full w-full object-cover" alt="" />` : ""}</div>
           <div class="min-w-0 flex-1">
             <div class="truncate text-base font-semibold text-white">${escapeHtml(title.title)}</div>
@@ -142,7 +153,7 @@ function renderPlanner() {
           </div>
           <button class="rounded-lg border border-rose-300/20 bg-rose-400/10 px-2 py-1 text-xs font-semibold text-rose-100" data-remove-title="${escapeHtml(title.npwr)}" type="button">Remove</button>
         </div>
-        <div class="grid gap-2">${trophyRows || `<div class="rounded-lg border border-dashed border-white/10 p-3 text-sm app-muted">No trophies match this filter.</div>`}</div>
+        ${collapsed ? "" : `<div class="grid gap-2">${trophyRows || `<div class="rounded-lg border border-dashed border-white/10 p-3 text-sm app-muted">No trophies match this filter.</div>`}</div>`}
       </article>
     `;
   }).join("");
@@ -166,12 +177,22 @@ async function searchCatalog(query) {
         <div class="truncate text-sm font-semibold text-white">${escapeHtml(item.title)}</div>
         <div class="text-xs app-muted">${escapeHtml(item.npwr)} &middot; ${escapeHtml(item.platform)} &middot; ${format(item.counts.total)} trophies</div>
       </div>
-      <button class="rounded-lg bg-cyan-300 px-2 py-1 text-xs font-bold text-slate-950" data-add-title="${escapeHtml(item.npwr)}" type="button">${state.titles.has(item.npwr) ? "Added" : "Add"}</button>
+      <button
+        class="rounded-lg px-2 py-1 text-xs font-bold ${state.titles.has(item.npwr) ? "cursor-not-allowed bg-slate-700 text-slate-400" : "bg-cyan-300 text-slate-950"}"
+        data-add-title="${escapeHtml(item.npwr)}"
+        type="button"
+        ${state.titles.has(item.npwr) ? "disabled" : ""}
+      >${state.titles.has(item.npwr) ? "Added" : "Add"}</button>
     </article>
   `).join("");
 }
 
 async function addTitle(npwr) {
+  if (state.titles.has(npwr)) {
+    renderPlanner();
+    return;
+  }
+
   const response = await fetch(`/api/planner-title.php?npwr=${encodeURIComponent(npwr)}`);
   const payload = await response.json();
   if (!payload.ok) throw new Error(payload.error || "Title load failed");
@@ -180,8 +201,11 @@ async function addTitle(npwr) {
     ...title,
     selectedIds: title.trophies.map((trophy) => trophy.id),
   });
+  state.collapsed.delete(title.npwr);
   persist();
   renderPlanner();
+  const query = els.search.value.trim();
+  if (query) searchCatalog(query).catch(() => {});
 }
 
 els.form.addEventListener("submit", (event) => {
@@ -212,11 +236,27 @@ els.list.addEventListener("change", (event) => {
 });
 
 els.list.addEventListener("click", (event) => {
+  const toggleButton = event.target.closest("[data-toggle-title]");
+  if (toggleButton) {
+    const npwr = toggleButton.dataset.toggleTitle;
+    if (state.collapsed.has(npwr)) {
+      state.collapsed.delete(npwr);
+    } else {
+      state.collapsed.add(npwr);
+    }
+    persist();
+    renderPlanner();
+    return;
+  }
+
   const button = event.target.closest("[data-remove-title]");
   if (!button) return;
   state.titles.delete(button.dataset.removeTitle);
+  state.collapsed.delete(button.dataset.removeTitle);
   persist();
   renderPlanner();
+  const query = els.search.value.trim();
+  if (query) searchCatalog(query).catch(() => {});
 });
 
 els.filter.addEventListener("change", () => {
@@ -227,6 +267,7 @@ els.filter.addEventListener("change", () => {
 els.clearButton.addEventListener("click", () => {
   if (!confirm("Clear the current trophy plan?")) return;
   state.titles.clear();
+  state.collapsed.clear();
   persist();
   renderPlanner();
 });
@@ -247,6 +288,7 @@ els.importFile.addEventListener("change", async () => {
   if (!file) return;
   const payload = JSON.parse(await file.text());
   state.titles.clear();
+  state.collapsed = new Set(payload.collapsed || []);
   for (const title of payload.titles || []) state.titles.set(title.npwr, title);
   persist();
   renderPlanner();
