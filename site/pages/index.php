@@ -243,7 +243,7 @@ render_header("Trophy Project");
   </section>
   </div>
 
-  <aside class="grid gap-5 lg:grid-cols-2">
+  <aside>
     <section class="app-panel overflow-hidden">
       <div class="border-b border-white/10 bg-cyan-300/10 px-4 py-3">
         <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Platform Coverage</h2>
@@ -262,13 +262,6 @@ render_header("Trophy Project");
           </div>
         <?php endforeach; ?>
       </div>
-    </section>
-
-    <section class="app-panel p-4">
-      <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Scanner Status</h2>
-      <p class="mt-2 text-sm leading-6 app-muted">
-        Sharded GitHub scans keep the database refreshed from the beginning of each owned NPWR range.
-      </p>
     </section>
   </aside>
 </section>
