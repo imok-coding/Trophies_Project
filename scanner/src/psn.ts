@@ -33,6 +33,7 @@ function isRetryableApiError(error: any) {
   if (status === 429 || status >= 500) return true;
 
   const message = String(error?.message ?? error ?? "").toLowerCase();
+  if (message.includes("not found") || message.includes("resource not found")) return false;
   return message.includes("rate") || message.includes("timeout") || message.includes("temporar");
 }
 
@@ -129,7 +130,7 @@ export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, np
       raw.__resolvedNpServiceName = service;
       return groups;
     } catch (e) {
-      retryable = true;
+      if (isRetryableApiError(e)) retryable = true;
       errors.push(`${service}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
