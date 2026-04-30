@@ -17,7 +17,7 @@ CREATE TABLE games (
   INDEX idx_last_seen (last_seen_utc),
   INDEX idx_platform (title_platform),
   INDEX idx_igdb (igdb_id)
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE trophy_groups (
   npwr           VARCHAR(16) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE trophy_groups (
   PRIMARY KEY (npwr, group_id),
   CONSTRAINT fk_group_game FOREIGN KEY (npwr) REFERENCES games(npwr)
     ON DELETE CASCADE
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE trophies (
   npwr           VARCHAR(16) NOT NULL,
@@ -48,10 +48,10 @@ CREATE TABLE trophies (
     ON DELETE CASCADE,
 
   INDEX idx_type (trophy_type)
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE scan_state (
   shard_index INT PRIMARY KEY,
   scan_cursor INT NOT NULL DEFAULT 0,
   updated_utc DATETIME NOT NULL
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
