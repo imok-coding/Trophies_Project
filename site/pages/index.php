@@ -5,67 +5,187 @@ require_once __DIR__ . '/../includes/layout.php';
 $db = db_connect();
 $gamesCount = (int)$db->query("SELECT COUNT(*) AS total FROM games")->fetch_assoc()["total"];
 $trophiesCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophies")->fetch_assoc()["total"];
-$res = $db->query("SELECT npwr, title_name, title_platform, icon_url, last_seen_utc
-                  FROM games ORDER BY last_seen_utc DESC LIMIT 60");
+$groupsCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophy_groups")->fetch_assoc()["total"];
+$platformCount = (int)$db->query("SELECT COUNT(DISTINCT title_platform) AS total FROM games WHERE title_platform <> ''")->fetch_assoc()["total"];
+
+$recentRes = $db->query("
+  SELECT
+    g.npwr,
+    g.title_name,
+    g.title_platform,
+    g.icon_url,
+    g.last_seen_utc,
+    COUNT(t.trophy_id) AS trophy_count,
+    SUM(t.trophy_type='platinum') AS platinum,
+    SUM(t.trophy_type='gold') AS gold,
+    SUM(t.trophy_type='silver') AS silver,
+    SUM(t.trophy_type='bronze') AS bronze
+  FROM (
+    SELECT npwr, title_name, title_platform, icon_url, last_seen_utc
+    FROM games
+    ORDER BY last_seen_utc DESC
+    LIMIT 12
+  ) g
+  LEFT JOIN trophies t ON t.npwr = g.npwr
+  GROUP BY g.npwr, g.title_name, g.title_platform, g.icon_url, g.last_seen_utc
+  ORDER BY g.last_seen_utc DESC
+");
+
+$recent = [];
+while ($row = $recentRes->fetch_assoc()) {
+  $recent[] = $row;
+}
+
+$platformRes = $db->query("
+  SELECT title_platform, COUNT(*) AS total
+  FROM games
+  WHERE title_platform <> ''
+  GROUP BY title_platform
+  ORDER BY total DESC, title_platform
+  LIMIT 6
+");
+
+$platforms = [];
+while ($row = $platformRes->fetch_assoc()) {
+  $platforms[] = $row;
+}
+
+$heroIcon = "";
+foreach ($recent as $row) {
+  if (!empty($row["icon_url"])) {
+    $heroIcon = $row["icon_url"];
+    break;
+  }
+}
+
+function trophy_stat($row, string $key): int {
+  return (int)($row[$key] ?? 0);
+}
 
 render_header("Trophy Project");
 ?>
-<section class="mb-5 grid gap-4 lg:grid-cols-[1.45fr_1fr]">
-  <div class="app-panel overflow-hidden p-5 sm:p-6">
-    <div class="flex items-start gap-4">
-      <div class="grid h-16 w-16 flex-shrink-0 place-items-center rounded-lg bg-cyan-400 text-3xl font-black text-slate-950 shadow-[0_0_42px_rgba(34,211,238,0.24)]">T</div>
-      <div class="min-w-0">
-        <div class="text-[13px] font-semibold uppercase tracking-wide text-cyan-300">Live trophy index</div>
-        <h1 class="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Trophy Project</h1>
-        <p class="mt-2 max-w-2xl text-[15px] leading-6 app-muted">
-          A searchable PlayStation NPWR trophy library, refreshed by automated shard scans.
-        </p>
-      </div>
-    </div>
-  </div>
+<section class="relative mb-5 overflow-hidden rounded-lg border border-cyan-300/15 bg-slate-950 shadow-[0_24px_80px_rgba(0,0,0,0.36)]">
+  <?php if ($heroIcon !== ""): ?>
+    <img src="<?= htmlspecialchars($heroIcon) ?>" class="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-2xl" alt="" />
+  <?php endif; ?>
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(34,211,238,0.22),transparent_28rem),linear-gradient(90deg,rgba(8,11,18,0.96),rgba(8,11,18,0.78),rgba(8,11,18,0.94))]"></div>
 
-  <div class="grid grid-cols-2 gap-3">
-    <div class="app-panel p-4">
-      <div class="text-xs font-semibold uppercase tracking-wide app-faint">Games</div>
-      <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($gamesCount) ?></div>
+  <div class="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+    <div>
+      <div class="text-[13px] font-semibold uppercase tracking-wide text-cyan-300">PlayStation Trophy Index</div>
+      <h1 class="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">Trophy Project</h1>
+      <p class="mt-3 max-w-2xl text-[15px] leading-6 app-muted">
+        Browse scanned NPWR trophy lists, inspect groups, and build a clean trophy roadmap from the local database.
+      </p>
+      <form action="/pages/search.php" method="get" class="mt-5 flex max-w-2xl gap-2">
+        <input
+          name="q"
+          class="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 focus:bg-white/[0.11] focus:ring-4 focus:ring-cyan-400/10"
+          placeholder="Search by game title or NPWR"
+          autocomplete="off"
+        />
+        <button class="rounded-lg bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200" type="submit">Search</button>
+      </form>
     </div>
-    <div class="app-panel p-4">
-      <div class="text-xs font-semibold uppercase tracking-wide app-faint">Trophies</div>
-      <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($trophiesCount) ?></div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <a href="/pages/planner.php" class="app-cell p-4 transition hover:-translate-y-0.5">
+        <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Planner</div>
+        <div class="mt-2 text-2xl font-semibold text-white">Roadmap</div>
+        <div class="mt-1 text-xs app-muted">Build trophy plans</div>
+      </a>
+      <a href="/pages/search.php" class="app-cell p-4 transition hover:-translate-y-0.5">
+        <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Library</div>
+        <div class="mt-2 text-2xl font-semibold text-white">Browse</div>
+        <div class="mt-1 text-xs app-muted">Find NPWR lists</div>
+      </a>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="mb-3 flex items-end justify-between px-1">
-    <h2 class="text-[13px] font-semibold uppercase tracking-wide app-faint">Recently scanned</h2>
-    <span class="text-xs app-faint">Latest updates</span>
+<section class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <article class="app-panel p-4">
+    <div class="text-xs font-semibold uppercase tracking-wide app-faint">Games Tracked</div>
+    <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($gamesCount) ?></div>
+  </article>
+  <article class="app-panel p-4">
+    <div class="text-xs font-semibold uppercase tracking-wide app-faint">Trophies Indexed</div>
+    <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($trophiesCount) ?></div>
+  </article>
+  <article class="app-panel p-4">
+    <div class="text-xs font-semibold uppercase tracking-wide app-faint">Trophy Groups</div>
+    <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($groupsCount) ?></div>
+  </article>
+  <article class="app-panel p-4">
+    <div class="text-xs font-semibold uppercase tracking-wide app-faint">Platforms</div>
+    <div class="mt-2 text-3xl font-semibold tracking-tight text-white"><?= number_format($platformCount) ?></div>
+  </article>
+</section>
+
+<section class="grid gap-5 lg:grid-cols-[1fr_22rem]">
+  <div class="app-panel overflow-hidden">
+    <div class="flex items-center justify-between border-b border-white/10 bg-cyan-300/10 px-4 py-3">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Newest Trophy Lists</h2>
+      <span class="text-xs app-faint">Latest scans</span>
+    </div>
+    <div class="divide-y divide-white/10">
+      <?php foreach ($recent as $row): ?>
+        <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
+          <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
+            <?php if (!empty($row["icon_url"])): ?>
+              <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
+            <?php endif; ?>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["title_name"]) ?></div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
+              <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($row["npwr"]) ?></span>
+              <span><?= htmlspecialchars($row["title_platform"]) ?></span>
+              <span><?= number_format((int)$row["trophy_count"]) ?> trophies</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
+              <span>P <?= number_format(trophy_stat($row, "platinum")) ?></span>
+              <span>G <?= number_format(trophy_stat($row, "gold")) ?></span>
+              <span>S <?= number_format(trophy_stat($row, "silver")) ?></span>
+              <span>B <?= number_format(trophy_stat($row, "bronze")) ?></span>
+            </div>
+          </div>
+          <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
+            <div>Updated</div>
+            <div><?= htmlspecialchars(substr((string)$row["last_seen_utc"], 0, 10)) ?></div>
+          </div>
+        </a>
+      <?php endforeach; ?>
+    </div>
   </div>
 
-  <div class="space-y-2">
-  <?php while ($row = $res->fetch_assoc()): ?>
-    <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="app-cell flex items-center gap-3 p-3 transition hover:-translate-y-0.5">
-      <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
-        <?php if (!empty($row["icon_url"])): ?>
-          <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
-        <?php endif; ?>
+  <aside class="space-y-5">
+    <section class="app-panel overflow-hidden">
+      <div class="border-b border-white/10 bg-cyan-300/10 px-4 py-3">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Platform Coverage</h2>
       </div>
+      <div class="space-y-3 p-4">
+        <?php foreach ($platforms as $platform): ?>
+          <?php $percent = $gamesCount > 0 ? max(4, min(100, ((int)$platform["total"] / $gamesCount) * 100)) : 0; ?>
+          <div>
+            <div class="mb-1 flex items-center justify-between gap-3 text-sm">
+              <span class="font-semibold text-white"><?= htmlspecialchars($platform["title_platform"]) ?></span>
+              <span class="text-xs app-muted"><?= number_format((int)$platform["total"]) ?></span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-white/[0.07]">
+              <div class="h-full rounded-full bg-cyan-300" style="width: <?= $percent ?>%"></div>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
 
-      <div class="min-w-0 flex-1">
-        <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["title_name"]) ?></div>
-        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
-          <span class="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-0.5 font-mono text-[11px] text-cyan-100"><?= htmlspecialchars($row["npwr"]) ?></span>
-          <span><?= htmlspecialchars($row["title_platform"]) ?></span>
-        </div>
-      </div>
-
-      <div class="hidden text-right text-xs app-faint sm:block">
-        <div>Updated</div>
-        <div><?= htmlspecialchars($row["last_seen_utc"]) ?> UTC</div>
-      </div>
-      <div class="text-xl app-faint">&rsaquo;</div>
-    </a>
-  <?php endwhile; ?>
-  </div>
+    <section class="app-panel p-4">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Scanner Status</h2>
+      <p class="mt-2 text-sm leading-6 app-muted">
+        Sharded GitHub scans keep the database refreshed from the beginning of each owned NPWR range.
+      </p>
+    </section>
+  </aside>
 </section>
 <?php render_footer(); ?>
