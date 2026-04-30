@@ -23,7 +23,7 @@ function primary_platform(string $platforms): string {
 $db = db_connect();
 $gamesCount = (int)$db->query("SELECT COUNT(*) AS total FROM games")->fetch_assoc()["total"];
 $trophiesCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophies")->fetch_assoc()["total"];
-$groupsCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophy_groups")->fetch_assoc()["total"];
+$groupsCount = (int)$db->query("SELECT COUNT(*) AS total FROM trophy_groups WHERE LOWER(group_id) <> 'default'")->fetch_assoc()["total"];
 
 $recentRes = $db->query("
   SELECT
@@ -51,6 +51,32 @@ $recentRes = $db->query("
 $recent = [];
 while ($row = $recentRes->fetch_assoc()) {
   $recent[] = $row;
+}
+
+$dlcRes = $db->query("
+  SELECT
+    tg.npwr,
+    tg.group_id,
+    tg.group_name,
+    tg.icon_url AS group_icon_url,
+    tg.defined_total,
+    g.title_name,
+    g.title_platform,
+    g.icon_url AS game_icon_url,
+    g.last_seen_utc,
+    COUNT(t.trophy_id) AS trophy_count
+  FROM trophy_groups tg
+  INNER JOIN games g ON g.npwr = tg.npwr
+  LEFT JOIN trophies t ON t.npwr = tg.npwr AND t.group_id = tg.group_id
+  WHERE LOWER(tg.group_id) <> 'default'
+  GROUP BY tg.npwr, tg.group_id, tg.group_name, tg.icon_url, tg.defined_total, g.title_name, g.title_platform, g.icon_url, g.last_seen_utc
+  ORDER BY g.last_seen_utc DESC, tg.group_id DESC
+  LIMIT 12
+");
+
+$dlc = [];
+while ($row = $dlcRes->fetch_assoc()) {
+  $dlc[] = $row;
 }
 
 $platformRes = $db->query("
@@ -147,7 +173,8 @@ render_header("Trophy Project");
 </section>
 
 <section class="grid gap-5 lg:grid-cols-[1fr_22rem]">
-  <div class="app-panel overflow-hidden">
+  <div class="space-y-5">
+  <section class="app-panel overflow-hidden">
     <div class="flex items-center justify-between border-b border-white/10 bg-cyan-300/10 px-4 py-3">
       <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Newest Trophy Lists</h2>
       <span class="text-xs app-faint">Latest scans</span>
@@ -181,6 +208,39 @@ render_header("Trophy Project");
         </a>
       <?php endforeach; ?>
     </div>
+  </section>
+
+  <section class="app-panel overflow-hidden">
+    <div class="flex items-center justify-between border-b border-white/10 bg-cyan-300/10 px-4 py-3">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-cyan-100">Newest DLC</h2>
+      <span class="text-xs app-faint">Latest groups</span>
+    </div>
+    <div class="divide-y divide-white/10">
+      <?php foreach ($dlc as $row): ?>
+        <?php $icon = $row["group_icon_url"] ?: $row["game_icon_url"]; ?>
+        <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
+          <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
+            <?php if (!empty($icon)): ?>
+              <img src="<?= htmlspecialchars($icon) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
+            <?php endif; ?>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["group_name"] ?: "DLC") ?></div>
+            <div class="mt-1 truncate text-sm app-muted"><?= htmlspecialchars($row["title_name"]) ?></div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
+              <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($row["group_id"]) ?></span>
+              <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
+              <span><?= number_format((int)($row["trophy_count"] ?: $row["defined_total"])) ?> trophies</span>
+            </div>
+          </div>
+          <div class="hidden min-w-[6.5rem] text-right text-xs app-faint sm:block">
+            <div>Updated</div>
+            <div><?= htmlspecialchars(substr((string)$row["last_seen_utc"], 0, 10)) ?></div>
+          </div>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
   </div>
 
   <aside class="space-y-5">
