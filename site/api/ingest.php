@@ -110,6 +110,9 @@ try {
     $npwr = (string)$gr["npwr"];
     $group_id = (string)$gr["group_id"];
     $group_name = (string)($gr["group_name"] ?? "");
+    if (strtolower($group_id) === "default" || strcasecmp($group_name, "Default Trophy Set") === 0) {
+      $group_name = "Base Game";
+    }
     $detail = (string)($gr["detail"] ?? "");
     $icon_url = (string)($gr["icon_url"] ?? "");
     $defined_total = isset($gr["defined_total"]) ? (int)$gr["defined_total"] : null;

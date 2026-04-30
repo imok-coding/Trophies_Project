@@ -44,13 +44,22 @@ $groups = $db->prepare("SELECT * FROM trophy_groups WHERE npwr=? ORDER BY group_
 $groups->bind_param("s", $npwr);
 $groups->execute();
 $gr = $groups->get_result();
+
+function trophy_group_label(array $group): string {
+  $groupId = strtolower((string)$group["group_id"]);
+  $groupName = trim((string)($group["group_name"] ?? ""));
+  if ($groupId === "default" || strcasecmp($groupName, "Default Trophy Set") === 0) {
+    return "Base Game";
+  }
+  return $groupName !== "" ? $groupName : "Trophy Group";
+}
 ?>
 
 <?php while ($g = $gr->fetch_assoc()): ?>
   <section class="mb-5">
     <div class="mb-2 flex items-end justify-between px-1">
       <h2 class="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide app-faint">
-        <?= htmlspecialchars($g["group_id"]) ?> &middot; <?= htmlspecialchars($g["group_name"] ?: "Trophy Group") ?>
+        <?= htmlspecialchars($g["group_id"]) ?> &middot; <?= htmlspecialchars(trophy_group_label($g)) ?>
       </h2>
       <?php if ($g["defined_total"] !== null): ?>
         <span class="text-xs app-faint"><?= (int)$g["defined_total"] ?> trophies</span>
