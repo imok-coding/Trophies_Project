@@ -68,21 +68,7 @@ function render_header(string $title = "Trophy Project") { ?>
         <span class="hidden text-[17px] font-semibold tracking-tight text-white sm:inline">Trophy Project</span>
       </a>
 
-      <form action="/pages/search.php" method="get" class="min-w-0 flex-1">
-        <label class="relative block">
-          <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm app-faint">Search</span>
-          <input
-            name="q"
-            value="<?= htmlspecialchars($_GET["q"] ?? "") ?>"
-            aria-label="Search games"
-            class="h-10 w-full rounded-lg border border-white/10 bg-white/[0.07] pl-[4.3rem] pr-4 text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 focus:bg-white/[0.10] focus:ring-4 focus:ring-cyan-400/10"
-          />
-        </label>
-      </form>
-
-      <a href="/pages/planner.php" class="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/15">
-        Planner
-      </a>
+      <div class="min-w-0 flex-1"></div>
     </div>
   </header>
 
