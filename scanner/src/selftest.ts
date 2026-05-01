@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { npwr, shardRange } from "./shard.js";
+import { badgeFromProductId } from "./storeRegions.js";
 
 const shardCount = 20;
 let expectedStart = 0;
@@ -19,5 +20,9 @@ assert.equal(npwr(99999), "NPWR99999_00");
 assert.throws(() => shardRange(-1, 20), /SHARD_INDEX/);
 assert.throws(() => shardRange(20, 20), /SHARD_INDEX/);
 assert.throws(() => shardRange(0, 0), /SHARD_COUNT/);
+assert.equal(badgeFromProductId("UP0001-CUSA09311_00-GAME000000000000"), "NA");
+assert.equal(badgeFromProductId("EP9000-PPSA07642_00-THELASTOFUSPART1"), "EU");
+assert.equal(badgeFromProductId("JP9000-PPSA07643_00-THELASTOFUSPART1"), "JP");
+assert.equal(badgeFromProductId("CP0000-CUSA00000_00-EXAMPLE00000000"), "CN");
 
 console.log("Scanner self-test OK");
