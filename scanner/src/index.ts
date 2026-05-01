@@ -11,7 +11,7 @@ import {
 } from "./psn.js";
 import { getIgdbToken, igdbSearchGame } from "./igdb.js";
 import { getAntiBotCookie, postIngest } from "./post.js";
-import { resolveStoreRegionsForTitle, type StoreRegionResolution } from "./storeRegions.js";
+import { resolveSerialStationRegionsForNpwr, resolveStoreRegionsForTitle, type StoreRegionResolution } from "./storeRegions.js";
 
 function env(name: string, fallback?: string) {
   const v = process.env[name] ?? fallback;
@@ -23,6 +23,12 @@ const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
 const SCAN_INTERVAL_MS = Number(env("SCAN_INTERVAL_MS", "600"));
+const SCAN_REGIONS = env("SCAN_REGIONS", "true").toLowerCase() !== "false";
+const REGION_SOURCES = env("REGION_SOURCES", "serialstation,store")
+  .toLowerCase()
+  .split(",")
+  .map(value => value.trim())
+  .filter(Boolean);
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -174,6 +180,43 @@ async function main() {
     };
   }
 
+  async function resolveRegions(currentNpwr: string, titleName: string, trophySetVersion?: string) {
+    if (!SCAN_REGIONS) return undefined;
+
+    if (REGION_SOURCES.includes("serialstation")) {
+      const serialStation = await resolveSerialStationRegionsForNpwr(currentNpwr, trophySetVersion);
+      if (serialStation) {
+        const available = serialStation.regions.filter(region => region.available);
+        if (available.length !== 0 || !REGION_SOURCES.includes("store")) {
+          return serialStation;
+        }
+      }
+    }
+
+    if (REGION_SOURCES.includes("store")) {
+      return await resolveStoreRegionsForTitle(auth, titleName);
+    }
+
+    return undefined;
+  }
+
+  function logRegionResolution(currentNpwr: string, resolution: StoreRegionResolution | undefined) {
+    if (!SCAN_REGIONS) return;
+    if (!resolution) {
+      console.log(`${currentNpwr}: Regions not found`);
+      return;
+    }
+
+    const available = resolution.regions.filter(region => region.available).map(region => region.badge);
+    if (available.length === 1) {
+      console.log(`${currentNpwr}: Regions ${available[0]} (${resolution.sourceType}:${resolution.sourceId})`);
+    } else if (available.length > 1) {
+      console.log(`${currentNpwr}: Regions ambiguous ${available.join(", ")} (${resolution.sourceType}:${resolution.sourceId})`);
+    } else {
+      console.log(`${currentNpwr}: Regions none (${resolution.sourceType}:${resolution.sourceId})`);
+    }
+  }
+
   for (let index = 0; index < scanTitles.length; index++) {
     const scanTitle = scanTitles[index];
     const np = scanTitle.npCommunicationId;
@@ -249,16 +292,8 @@ async function main() {
       }
 
       try {
-        regionResolution = await resolveStoreRegionsForTitle(auth, title_name);
-        if (regionResolution) {
-          const available = regionResolution.regions
-            .filter(region => region.available)
-            .map(region => region.badge)
-            .join(", ");
-          console.log(`${np}: Regions ${available || "none"} (${regionResolution.sourceType}:${regionResolution.sourceId})`);
-        } else {
-          console.log(`${np}: Regions not found`);
-        }
+        regionResolution = await resolveRegions(np, title_name, trophy_set_ver);
+        logRegionResolution(np, regionResolution);
       } catch (regionError) {
         console.log(`${np}: Regions Error - ${errorSummary(regionError).replaceAll("\n", " ")}`);
       }

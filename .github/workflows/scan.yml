@@ -77,6 +77,8 @@ jobs:
           SHARD_COUNT: 20
           BATCH_SIZE: 5000
           SCAN_INTERVAL_MS: 600
+          SCAN_REGIONS: true
+          REGION_SOURCES: serialstation,store
           START_FROM_BEGINNING: true
           NPWRS: ${{ inputs.npwrs }}
           PSN_REFRESH_TOKEN: ${{ secrets.PSN_REFRESH_TOKEN }}

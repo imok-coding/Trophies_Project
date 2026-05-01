@@ -10,7 +10,7 @@ export type StoreRegion = {
 };
 
 export type StoreRegionResolution = {
-  sourceType: "concept" | "product";
+  sourceType: "concept" | "product" | "serialstation";
   sourceId: string;
   title?: string;
   regions: StoreRegion[];
@@ -20,6 +20,8 @@ type AuthLike = { accessToken: string };
 
 const STORE_GRAPHQL_URL = "https://web.np.playstation.com/api/graphql/v1/op";
 const MOBILE_SEARCH_URL = "https://m.np.playstation.com/api/search/v1/universalSearch";
+const SERIALSTATION_URL = "https://serialstation.com";
+const SERIALSTATION_API_URL = "https://api.serialstation.com/v1";
 
 const OPERATION_HASHES = {
   metGetProductById: "a128042177bd93dd831164103d53b73ef790d56f51dae647064cb8f9d9fc9d1a",
@@ -40,6 +42,18 @@ export function badgeFromProductId(productId: string): RegionBadge | undefined {
   if (prefix === "JP") return "JP";
   if (prefix === "CP") return "CN";
   return undefined;
+}
+
+export function badgeFromTitleId(titleId: string): RegionBadge | undefined {
+  const prefix = titleId.replace("-", "").slice(0, 4).toUpperCase();
+  if (/^(BCES|BLES|NPE[A-Z]|PCSB|PCSF|UCES|ULES)$/.test(prefix)) return "EU";
+  if (/^(BCJS|BCJB|BLJS|BLJM|NPJ[A-Z]|PCJS|PCJB|UCJS|UCJB|ULJS|ULJM)$/.test(prefix)) return "JP";
+  if (/^(BCUS|BLUS|NP[A-Z]?A|NPU[A-Z]|PCSA|PCSE|PCSI|UCUS|ULUS)$/.test(prefix)) return "NA";
+  return undefined;
+}
+
+export function npwrDigits(npwr: string): string | undefined {
+  return npwr.match(/^NPWR(\d{5})_00$/)?.[1];
 }
 
 export function normalizeStoreTitle(value: string): string {
@@ -75,6 +89,24 @@ async function storeGraphql(operationName: keyof typeof OPERATION_HASHES, variab
 
   const body = await response.json().catch(() => ({}));
   return body as any;
+}
+
+async function fetchText(url: string): Promise<string | undefined> {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "TrophyProjectScanner/1.0" }
+  });
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`SerialStation failed ${response.status}`);
+  return await response.text();
+}
+
+async function fetchJson(url: string): Promise<any | undefined> {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "TrophyProjectScanner/1.0" }
+  });
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`SerialStation API failed ${response.status}`);
+  return await response.json();
 }
 
 async function mobileGameSearch(auth: AuthLike, titleName: string) {
@@ -137,6 +169,106 @@ function productTitle(product: any): string | undefined {
     product?.invariantName ??
     product?.concept?.name ??
     product?.concept?.invariantName;
+}
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function titleFromHtml(html: string): string | undefined {
+  const match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (!match) return undefined;
+  return decodeHtml(match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+function titleIdsFromHtml(html: string): string[] {
+  const out = new Set<string>();
+  for (const match of html.matchAll(/\/titles\/([A-Z0-9]{4})\/(\d{5})/g)) {
+    out.add(`${match[1]}${match[2]}`);
+  }
+  for (const match of html.matchAll(/\b([A-Z0-9]{4})-(\d{5})\b/g)) {
+    out.add(`${match[1]}${match[2]}`);
+  }
+  return [...out];
+}
+
+function contentIdsFromHtml(html: string): string[] {
+  return [...new Set([...html.matchAll(/\b[A-Z]{2}\d{4}-[A-Z0-9]{9}_[A-Z0-9]{2}-[A-Z0-9_]{16}\b/g)].map(match => match[0]))];
+}
+
+async function serialStationTrophyHtml(digits: string, trophySetVersion?: string): Promise<string | undefined> {
+  const versions = [...new Set([trophySetVersion, "01.00"].filter(Boolean))] as string[];
+  for (const version of versions) {
+    const ajax = await fetchText(`${SERIALSTATION_URL}/ajax/table/trophies/NPWR/${digits}/${encodeURIComponent(version)}`);
+    if (ajax) return ajax;
+  }
+
+  const page = await fetchText(`${SERIALSTATION_URL}/trophies/NPWR/${digits}`);
+  if (!page) return undefined;
+
+  const tableMatch = page.match(/initializeTable\("([^"]+)"/);
+  if (tableMatch?.[1]) {
+    return await fetchText(`${SERIALSTATION_URL}/ajax/table/${tableMatch[1]}`) ?? page;
+  }
+  return page;
+}
+
+async function contentIdsForTitleId(titleId: string): Promise<string[]> {
+  const data = await fetchJson(`${SERIALSTATION_API_URL}/content-ids/?title_id=${encodeURIComponent(titleId)}&limit=100`);
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return items
+    .map((item: any) => typeof item?.content_id === "string" ? item.content_id : undefined)
+    .filter(Boolean);
+}
+
+export async function resolveSerialStationRegionsForNpwr(npwr: string, trophySetVersion?: string): Promise<StoreRegionResolution | undefined> {
+  const digits = npwrDigits(npwr);
+  if (!digits) return undefined;
+
+  const html = await serialStationTrophyHtml(digits, trophySetVersion);
+  if (!html) return undefined;
+
+  const titleIds = titleIdsFromHtml(html);
+  const directContentIds = contentIdsFromHtml(html);
+  const contentIds = new Set(directContentIds);
+  for (const titleId of titleIds.slice(0, 10)) {
+    for (const contentId of await contentIdsForTitleId(titleId)) {
+      contentIds.add(contentId);
+    }
+  }
+
+  const badgeProducts = new Map<RegionBadge, Set<string>>();
+  for (const productId of contentIds) {
+    const badge = badgeFromProductId(productId);
+    if (!badge) continue;
+    const products = badgeProducts.get(badge) ?? new Set<string>();
+    products.add(productId);
+    badgeProducts.set(badge, products);
+  }
+
+  for (const titleId of titleIds) {
+    const badge = badgeFromTitleId(titleId);
+    if (!badge || badgeProducts.has(badge)) continue;
+    badgeProducts.set(badge, new Set([titleId]));
+  }
+
+  return {
+    sourceType: "serialstation",
+    sourceId: `NPWR-${digits}`,
+    title: titleFromHtml(html),
+    regions: [...badgeProducts.entries()].map(([badge, products]) => ({
+      badge,
+      locale: "serialstation",
+      available: true,
+      title: titleFromHtml(html),
+      productIds: [...products]
+    }))
+  };
 }
 
 export async function fetchProductRegions(productId: string): Promise<StoreRegion[]> {
