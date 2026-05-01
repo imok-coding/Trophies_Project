@@ -78,7 +78,8 @@ function decodeHtml(value: string): string {
 }
 
 function badgeFromLegacyMarker(marker: string | undefined): RegionBadge | undefined {
-  const value = (marker ?? "USA").trim().toUpperCase();
+  if (!marker) return undefined;
+  const value = marker.trim().toUpperCase();
   if (value === "USA" || value === "US" || value === "NA") return "NA";
   if (value === "EUR" || value === "EU" || value === "PAL") return "EU";
   if (value === "JPN" || value === "JP" || value === "JAPAN") return "JP";
