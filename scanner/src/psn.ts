@@ -4,6 +4,7 @@ import {
   exchangeRefreshTokenForAuthTokens,
   getTitleTrophyGroups,
   getTitleTrophies,
+  getUserTrophiesForSpecificTitle,
   getUserTitles,
   makeUniversalSearch
 } from "psn-api";
@@ -201,6 +202,18 @@ export async function fetchTitleGroups(auth: Auth, npCommunicationId: string, np
     /resource not found|not found|missing trophy title name/i.test(error)
   );
   throw new TitleLookupError(message, retryable && !onlyMissing);
+}
+
+export async function fetchTrophyTitlesForTitleIds(auth: Auth, titleIds: string[], accountId = "me") {
+  const npTitleIds = titleIds.join(",");
+
+  try {
+    return await getUserTrophiesForSpecificTitle(auth, accountId, { npTitleIds } as any);
+  } catch (e) {
+    if (!isExpiredTokenError(e)) throw e;
+    await refreshAuth(auth);
+    return await getUserTrophiesForSpecificTitle(auth, accountId, { npTitleIds } as any);
+  }
 }
 
 export async function fetchAllTrophies(auth: Auth, npCommunicationId: string, platform: string, npServiceName?: NpServiceName) {

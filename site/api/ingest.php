@@ -33,6 +33,23 @@ try {
   ");
 
   $db->query("
+    CREATE TABLE IF NOT EXISTS game_region_evidence (
+      npwr VARCHAR(16) NOT NULL,
+      region_badge ENUM('NA','EU','JP','CN') NOT NULL,
+      source_type VARCHAR(32) NOT NULL,
+      source_id VARCHAR(128) NOT NULL,
+      title_id VARCHAR(32) NULL,
+      product_id VARCHAR(64) NULL,
+      confidence TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      evidence_json TEXT NULL,
+      checked_utc DATETIME NOT NULL,
+      PRIMARY KEY (npwr, source_type, source_id),
+      INDEX idx_game_region_evidence_npwr (npwr),
+      INDEX idx_game_region_evidence_badge (region_badge, confidence)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  ");
+
+  $db->query("
     CREATE TABLE IF NOT EXISTS game_regions (
       npwr VARCHAR(16) NOT NULL,
       region_badge ENUM('NA','EU','JP','CN') NOT NULL,
@@ -205,7 +222,81 @@ try {
     $stmtTrophy->execute();
   }
 
-  // Region enrichment is intentionally disabled until it can be rebuilt from exact NPWR evidence.
+  // Exact region evidence. A badge is displayed only when the scanner verifies one region for an NPWR.
+  $stmtClearRegions = $db->prepare("DELETE FROM game_regions WHERE npwr=?");
+  $stmtClearEvidence = $db->prepare("DELETE FROM game_region_evidence WHERE npwr=?");
+  foreach (($data["region_checked"] ?? []) as $npwrToClear) {
+    $npwr = (string)$npwrToClear;
+    if ($npwr === "") {
+      continue;
+    }
+
+    $stmtClearRegions->bind_param("s", $npwr);
+    $stmtClearRegions->execute();
+    $stmtClearEvidence->bind_param("s", $npwr);
+    $stmtClearEvidence->execute();
+  }
+
+  $stmtEvidence = $db->prepare("
+    INSERT INTO game_region_evidence
+      (npwr, region_badge, source_type, source_id, title_id, product_id, confidence, evidence_json, checked_utc)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
+    ON DUPLICATE KEY UPDATE
+      region_badge=VALUES(region_badge),
+      title_id=VALUES(title_id),
+      product_id=VALUES(product_id),
+      confidence=VALUES(confidence),
+      evidence_json=VALUES(evidence_json),
+      checked_utc=UTC_TIMESTAMP()
+  ");
+
+  foreach (($data["region_evidence"] ?? []) as $evidence) {
+    $npwr = (string)($evidence["npwr"] ?? "");
+    $region_badge = (string)($evidence["region_badge"] ?? "");
+    if ($npwr === "" || !in_array($region_badge, ["NA", "EU", "JP", "CN"], true)) {
+      continue;
+    }
+    $source_type = substr((string)($evidence["source_type"] ?? ""), 0, 32);
+    $source_id = substr((string)($evidence["source_id"] ?? ""), 0, 128);
+    $title_id = isset($evidence["title_id"]) ? substr((string)$evidence["title_id"], 0, 32) : null;
+    $product_id = isset($evidence["product_id"]) ? substr((string)$evidence["product_id"], 0, 64) : null;
+    $confidence = max(0, min(100, (int)($evidence["confidence"] ?? 0)));
+    $evidence_json = json_encode($evidence["evidence"] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($source_type === "" || $source_id === "") {
+      continue;
+    }
+
+    $stmtEvidence->bind_param("ssssssis", $npwr, $region_badge, $source_type, $source_id, $title_id, $product_id, $confidence, $evidence_json);
+    $stmtEvidence->execute();
+  }
+
+  $stmtRegion = $db->prepare("
+    INSERT INTO game_regions (npwr, region_badge, locale, available, title, product_ids, error_message, checked_utc)
+    VALUES (?, ?, ?, ?, ?, ?, NULL, UTC_TIMESTAMP())
+    ON DUPLICATE KEY UPDATE
+      locale=VALUES(locale),
+      available=VALUES(available),
+      title=VALUES(title),
+      product_ids=VALUES(product_ids),
+      error_message=NULL,
+      checked_utc=UTC_TIMESTAMP()
+  ");
+
+  foreach (($data["regions"] ?? []) as $region) {
+    $npwr = (string)($region["npwr"] ?? "");
+    $region_badge = (string)($region["region_badge"] ?? "");
+    if ($npwr === "" || !in_array($region_badge, ["NA", "EU", "JP", "CN"], true)) {
+      continue;
+    }
+    $locale = (string)($region["locale"] ?? "verified");
+    $available = !empty($region["available"]) ? 1 : 0;
+    $title = isset($region["title"]) ? (string)$region["title"] : null;
+    $product_ids = json_encode(array_values($region["product_ids"] ?? []), JSON_UNESCAPED_SLASHES);
+
+    $stmtRegion->bind_param("sssiss", $npwr, $region_badge, $locale, $available, $title, $product_ids);
+    $stmtRegion->execute();
+    $results[$npwr] = "updated";
+  }
 
   // Save shard scan cursor (optional)
   if (isset($data["scan_state"])) {

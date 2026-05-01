@@ -11,6 +11,7 @@ import {
 } from "./psn.js";
 import { getIgdbToken, igdbSearchGame } from "./igdb.js";
 import { getAntiBotCookie, postIngest } from "./post.js";
+import { resolveVerifiedRegionsForNpwr } from "./regionEvidence.js";
 
 function env(name: string, fallback?: string) {
   const v = process.env[name] ?? fallback;
@@ -22,6 +23,7 @@ const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
 const SCAN_INTERVAL_MS = Number(env("SCAN_INTERVAL_MS", "600"));
+const SCAN_REGIONS = env("SCAN_REGIONS", "true").toLowerCase() !== "false";
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -67,12 +69,18 @@ async function main() {
     trophies: any[],
     nextCursor?: number,
     removed?: any[],
+    regionChecked: string[] = [],
+    regionEvidence: any[] = [],
+    regions: any[] = []
   ) {
     const payload: any = {
       games,
       groups,
       trophies,
-      removed: removed ?? []
+      removed: removed ?? [],
+      region_checked: regionChecked,
+      region_evidence: regionEvidence,
+      regions
     };
 
     if (nextCursor != null) {
@@ -113,6 +121,9 @@ async function main() {
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
+  const checkedRegions: string[] = [];
+  const regionEvidence: any[] = [];
+  const regionRows: any[] = [];
   const pendingTitleByNpwr = new Map<string, string>();
   let postedGames = 0;
   let invalidCount = 0;
@@ -135,6 +146,7 @@ async function main() {
     const gameRows: any[] = [];
     const groupRows: any[] = [];
     const trophyRows: any[] = [];
+    let regionResolution = { checked: [] as string[], evidence: [] as any[], regions: [] as any[] };
 
     try {
       const g = await fetchTitleGroups(auth, np, scanTitle.npServiceName);
@@ -197,6 +209,23 @@ async function main() {
           icon_url: t.trophyIconUrl ?? ""
         });
       }
+
+      if (SCAN_REGIONS) {
+        try {
+          regionResolution = await resolveVerifiedRegionsForNpwr(auth, np, title_name);
+          const uniqueBadges = [...new Set(regionResolution.evidence.map((row: any) => row.region_badge))];
+          if (regionResolution.regions.length === 1) {
+            console.log(`${np}: Region ${regionResolution.regions[0].region_badge} (verified)`);
+          } else if (uniqueBadges.length > 1) {
+            console.log(`${np}: Region Ambiguous - ${uniqueBadges.join(", ")}`);
+          } else {
+            console.log(`${np}: Region Unverified`);
+          }
+        } catch (regionError) {
+          regionResolution = { checked: [], evidence: [], regions: [] };
+          console.log(`${np}: Region Error - ${errorSummary(regionError).replaceAll("\n", " ")}`);
+        }
+      }
     } catch (e) {
       const retryableTitleLookup = e instanceof TitleLookupError && e.retryable;
       if (retryableTitleLookup) {
@@ -238,7 +267,10 @@ async function main() {
         groupRows,
         trophyRows,
         nextCursor,
-        []
+        [],
+        regionResolution.checked,
+        regionResolution.evidence,
+        regionResolution.regions
       );
       postedGames += gameRows.length;
       const result = ingest.results?.[np];
@@ -247,6 +279,9 @@ async function main() {
       games.push(...gameRows);
       groups.push(...groupRows);
       trophies.push(...trophyRows);
+      checkedRegions.push(...regionResolution.checked);
+      regionEvidence.push(...regionResolution.evidence);
+      regionRows.push(...regionResolution.regions);
       postedGames = games.length;
       pendingTitleByNpwr.set(np, String(gameRows[0]?.title_name ?? "Unknown"));
     }
@@ -255,7 +290,7 @@ async function main() {
   }
 
   if (explicitNpwrs.length > 0 || PSN_NAME) {
-    const ingest = await ingestScanResult(games, groups, trophies, undefined, []);
+    const ingest = await ingestScanResult(games, groups, trophies, undefined, [], checkedRegions, regionEvidence, regionRows);
     for (const [np, title] of pendingTitleByNpwr) {
       const result = ingest.results?.[np];
       logNpwrResult(np, result === "updated" ? "Updated" : title);

@@ -2,13 +2,16 @@
 header('Content-Type: application/json');
 
 function table_count(mysqli $db, string $table): int {
-  $allowed = ['games', 'trophy_groups', 'trophies', 'scan_state', 'game_regions', 'game_store_links'];
+  $allowed = ['games', 'trophy_groups', 'trophies', 'scan_state', 'game_regions', 'game_region_evidence', 'game_store_links'];
   if (!in_array($table, $allowed, true)) {
     throw new InvalidArgumentException('Unexpected table');
   }
 
   $result = $db->query("SELECT COUNT(*) AS total FROM {$table}");
   if (!$result) {
+    if ($db->errno === 1146) {
+      return 0;
+    }
     throw new RuntimeException($db->error);
   }
 
@@ -28,6 +31,7 @@ try {
       'trophies' => table_count($db, 'trophies'),
       'scan_state' => table_count($db, 'scan_state'),
       'game_regions' => table_count($db, 'game_regions'),
+      'game_region_evidence' => table_count($db, 'game_region_evidence'),
       'game_store_links' => table_count($db, 'game_store_links')
     ]
   ]);
