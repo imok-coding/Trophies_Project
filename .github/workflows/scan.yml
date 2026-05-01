@@ -3,8 +3,9 @@ name: Scan NPWR shards
 on:
   schedule:
     # GitHub schedules use UTC and top-of-hour runs can be delayed or dropped.
-    # This is 00:07, 06:07, 12:07, and 18:07 America/Chicago during daylight time.
-    - cron: '7 5,11,17,23 * * *'
+    # These UTC hours cover 00:07, 06:07, 12:07, and 18:07 Central Time
+    # in both standard time and daylight time. The job below gates on America/Chicago.
+    - cron: '7 0,5,6,11,12,17,18,23 * * *'
   workflow_dispatch:
     inputs:
       npwrs:
@@ -22,27 +23,55 @@ jobs:
         shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
     steps:
+      - name: Check Central Time scan window
+        id: ct_window
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_scan=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run; scan enabled."
+            exit 0
+          fi
+
+          ct_time="$(TZ=America/Chicago date +'%Y-%m-%d %H:%M:%S %Z')"
+          ct_hour="$(TZ=America/Chicago date +'%H')"
+          case "$ct_hour" in
+            00|06|12|18)
+              echo "should_scan=true" >> "$GITHUB_OUTPUT"
+              echo "Central Time is $ct_time; scan enabled."
+              ;;
+            *)
+              echo "should_scan=false" >> "$GITHUB_OUTPUT"
+              echo "Central Time is $ct_time; outside scan window."
+              ;;
+          esac
+
       - uses: actions/checkout@v4
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' }}
 
       - uses: actions/setup-node@v4
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' }}
         with:
           node-version: 20
 
       - name: Install
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' }}
         working-directory: scanner
         run: npm ci
 
       - name: Build
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' }}
         working-directory: scanner
         run: npm run build
 
       - name: Test
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' }}
         working-directory: scanner
         run: npm test
 
       - name: Scan shard
         working-directory: scanner
-        if: ${{ inputs.npwrs == '' || matrix.shard == 0 }}
+        if: ${{ steps.ct_window.outputs.should_scan == 'true' && (inputs.npwrs == '' || matrix.shard == 0) }}
         env:
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: 20
