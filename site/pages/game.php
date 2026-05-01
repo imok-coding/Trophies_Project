@@ -45,7 +45,17 @@ render_header($game["title_name"]);
 </section>
 
 <?php
-$groups = $db->prepare("SELECT * FROM trophy_groups WHERE npwr=? ORDER BY group_id");
+$groups = $db->prepare("
+  SELECT *
+  FROM trophy_groups
+  WHERE npwr=?
+  ORDER BY
+    CASE
+      WHEN LOWER(group_id) = 'default' OR LOWER(group_name) IN ('default trophy set', 'base game') THEN 0
+      ELSE 1
+    END,
+    group_id
+");
 $groups->bind_param("s", $npwr);
 $groups->execute();
 $gr = $groups->get_result();

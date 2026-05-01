@@ -25,7 +25,10 @@ $stmt = $db->prepare("
   SELECT trophy_id, group_id, trophy_name, trophy_detail, trophy_type, hidden, icon_url
   FROM trophies
   WHERE npwr=?
-  ORDER BY group_id, trophy_id
+  ORDER BY
+    CASE WHEN LOWER(group_id) = 'default' THEN 0 ELSE 1 END,
+    group_id,
+    trophy_id
 ");
 $stmt->bind_param('s', $npwr);
 $stmt->execute();
