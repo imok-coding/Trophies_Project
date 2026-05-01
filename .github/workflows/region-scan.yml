@@ -1,0 +1,35 @@
+name: Scan PS Store regions
+
+on:
+  workflow_dispatch:
+    inputs:
+      links:
+        description: 'JSON array or lines like NPWR12345_00=concept:10002694'
+        required: true
+
+jobs:
+  region-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        working-directory: scanner
+        run: npm ci
+
+      - name: Build
+        working-directory: scanner
+        run: npm run build
+
+      - name: Scan regions
+        working-directory: scanner
+        env:
+          REGION_LINKS: ${{ inputs.links }}
+          INGEST_URL: ${{ secrets.INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
+        run: npm run region:scan

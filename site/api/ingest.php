@@ -19,6 +19,35 @@ $db->begin_transaction();
 try {
   $results = [];
 
+  $db->query("
+    CREATE TABLE IF NOT EXISTS game_store_links (
+      npwr VARCHAR(16) NOT NULL,
+      source_type VARCHAR(16) NOT NULL,
+      source_id VARCHAR(128) NOT NULL,
+      title VARCHAR(255) NULL,
+      checked_utc DATETIME NOT NULL,
+      PRIMARY KEY (npwr, source_type, source_id),
+      INDEX idx_game_store_links_source (source_type, source_id),
+      INDEX idx_game_store_links_npwr (npwr)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  ");
+
+  $db->query("
+    CREATE TABLE IF NOT EXISTS game_regions (
+      npwr VARCHAR(16) NOT NULL,
+      region_badge ENUM('NA','EU','JP','CN') NOT NULL,
+      locale VARCHAR(24) NOT NULL,
+      available TINYINT(1) NOT NULL DEFAULT 0,
+      title VARCHAR(255) NULL,
+      product_ids TEXT NULL,
+      error_message VARCHAR(512) NULL,
+      checked_utc DATETIME NOT NULL,
+      PRIMARY KEY (npwr, region_badge),
+      INDEX idx_game_regions_badge (region_badge, available),
+      INDEX idx_game_regions_npwr (npwr)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  ");
+
   // Removed/delisted games. The delisted table intentionally allows repeat NPWR entries.
   $stmtExistingGame = $db->prepare("SELECT 1 FROM games WHERE npwr=? LIMIT 1");
   $stmtDelisted = $db->prepare("
@@ -168,6 +197,60 @@ try {
 
     $stmtTrophy->bind_param("ssisssis", $npwr, $group_id, $trophy_id, $trophy_name, $trophy_detail, $trophy_type, $hidden, $icon_url);
     $stmtTrophy->execute();
+  }
+
+  // PS Store region enrichment. Regions are intentionally limited to NA/EU/JP/CN.
+  $stmtStoreLink = $db->prepare("
+    INSERT INTO game_store_links (npwr, source_type, source_id, title, checked_utc)
+    VALUES (?, ?, ?, ?, UTC_TIMESTAMP())
+    ON DUPLICATE KEY UPDATE
+      title=VALUES(title),
+      checked_utc=UTC_TIMESTAMP()
+  ");
+
+  foreach (($data["store_links"] ?? []) as $link) {
+    $npwr = (string)($link["npwr"] ?? "");
+    $source_type = (string)($link["source_type"] ?? "");
+    $source_id = (string)($link["source_id"] ?? "");
+    $title = isset($link["title"]) ? (string)$link["title"] : null;
+    if ($npwr === "" || $source_type === "" || $source_id === "") {
+      continue;
+    }
+
+    $stmtStoreLink->bind_param("ssss", $npwr, $source_type, $source_id, $title);
+    $stmtStoreLink->execute();
+  }
+
+  $stmtRegion = $db->prepare("
+    INSERT INTO game_regions (npwr, region_badge, locale, available, title, product_ids, error_message, checked_utc)
+    VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
+    ON DUPLICATE KEY UPDATE
+      locale=VALUES(locale),
+      available=VALUES(available),
+      title=VALUES(title),
+      product_ids=VALUES(product_ids),
+      error_message=VALUES(error_message),
+      checked_utc=UTC_TIMESTAMP()
+  ");
+
+  foreach (($data["regions"] ?? []) as $region) {
+    $npwr = (string)($region["npwr"] ?? "");
+    $region_badge = (string)($region["region_badge"] ?? "");
+    if (!in_array($region_badge, ["NA", "EU", "JP", "CN"], true)) {
+      continue;
+    }
+    $locale = (string)($region["locale"] ?? "");
+    $available = !empty($region["available"]) ? 1 : 0;
+    $title = isset($region["title"]) ? (string)$region["title"] : null;
+    $product_ids = json_encode(array_values($region["product_ids"] ?? []), JSON_UNESCAPED_SLASHES);
+    $error_message = isset($region["error"]) ? (string)$region["error"] : null;
+    if ($npwr === "" || $locale === "") {
+      continue;
+    }
+
+    $stmtRegion->bind_param("sssisss", $npwr, $region_badge, $locale, $available, $title, $product_ids, $error_message);
+    $stmtRegion->execute();
+    $results[$npwr] = "updated";
   }
 
   // Save shard scan cursor (optional)

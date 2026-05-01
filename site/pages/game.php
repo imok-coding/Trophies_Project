@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/regions.php';
 
 $npwr = $_GET["npwr"] ?? "";
 $db = db_connect();
@@ -10,6 +11,7 @@ $stmt->bind_param("s", $npwr);
 $stmt->execute();
 $game = $stmt->get_result()->fetch_assoc();
 if (!$game) { http_response_code(404); exit("Not found"); }
+$regionBadges = region_badges_for_npwrs($db, [$npwr]);
 
 render_header($game["title_name"]);
 ?>
@@ -25,7 +27,10 @@ render_header($game["title_name"]);
         <?= htmlspecialchars($game["npwr"]) ?>
       </div>
       <h1 class="text-2xl font-semibold tracking-tight text-white sm:text-3xl"><?= htmlspecialchars($game["title_name"]) ?></h1>
-      <div class="mt-1 text-[15px] app-muted"><?= htmlspecialchars($game["title_platform"]) ?></div>
+      <div class="mt-1 flex flex-wrap items-center gap-2 text-[15px] app-muted">
+        <span><?= htmlspecialchars($game["title_platform"]) ?></span>
+        <?php render_region_badges($regionBadges[$npwr] ?? []); ?>
+      </div>
 
       <?php if (!empty($game["igdb_name"])): ?>
         <div class="mt-3 text-sm app-muted">

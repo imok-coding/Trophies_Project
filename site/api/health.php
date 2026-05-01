@@ -2,7 +2,7 @@
 header('Content-Type: application/json');
 
 function table_count(mysqli $db, string $table): int {
-  $allowed = ['games', 'trophy_groups', 'trophies', 'scan_state'];
+  $allowed = ['games', 'trophy_groups', 'trophies', 'scan_state', 'game_regions', 'game_store_links'];
   if (!in_array($table, $allowed, true)) {
     throw new InvalidArgumentException('Unexpected table');
   }
@@ -26,7 +26,9 @@ try {
       'games' => table_count($db, 'games'),
       'trophy_groups' => table_count($db, 'trophy_groups'),
       'trophies' => table_count($db, 'trophies'),
-      'scan_state' => table_count($db, 'scan_state')
+      'scan_state' => table_count($db, 'scan_state'),
+      'game_regions' => table_count($db, 'game_regions'),
+      'game_store_links' => table_count($db, 'game_store_links')
     ]
   ]);
 } catch (Throwable $e) {

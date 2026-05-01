@@ -2,9 +2,12 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/search.php';
+require_once __DIR__ . '/../includes/regions.php';
 
 $q = trim($_GET["q"] ?? "");
 $db = db_connect();
+$results = [];
+$regionBadges = [];
 
 render_header("Search");
 ?>
@@ -31,13 +34,17 @@ render_header("Search");
     $stmt->bind_param("ssss", $like, $like, $normalizedLike, $normalizedLike);
     $stmt->execute();
     $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+      $results[] = $row;
+    }
+    $regionBadges = region_badges_for_npwrs($db, array_column($results, "npwr"));
   ?>
   <div class="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wide app-faint">
     Results for "<?= htmlspecialchars($q) ?>"
   </div>
 
   <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-  <?php while ($row = $res->fetch_assoc()): ?>
+  <?php foreach ($results as $row): ?>
     <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="app-cell flex gap-3 p-3 transition hover:-translate-y-0.5">
       <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
         <?php if (!empty($row["icon_url"])): ?>
@@ -49,9 +56,12 @@ render_header("Search");
         <div class="mt-1 text-xs app-muted">
           <?= htmlspecialchars($row["npwr"]) ?> &middot; <?= htmlspecialchars($row["title_platform"]) ?>
         </div>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <?php render_region_badges($regionBadges[$row["npwr"]] ?? []); ?>
+        </div>
       </div>
     </a>
-  <?php endwhile; ?>
+  <?php endforeach; ?>
   </div>
 <?php endif; ?>
 

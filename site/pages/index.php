@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/regions.php';
 
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
@@ -52,6 +53,7 @@ $recent = [];
 while ($row = $recentRes->fetch_assoc()) {
   $recent[] = $row;
 }
+$recentBadges = region_badges_for_npwrs($db, array_column($recent, "npwr"));
 
 $dlcRes = $db->query("
   SELECT
@@ -78,6 +80,7 @@ $dlc = [];
 while ($row = $dlcRes->fetch_assoc()) {
   $dlc[] = $row;
 }
+$dlcBadges = region_badges_for_npwrs($db, array_column($dlc, "npwr"));
 
 $platformRes = $db->query("
   SELECT title_platform
@@ -196,6 +199,7 @@ render_header("Trophy Project");
             <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["title_name"]) ?></div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
               <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($row["npwr"]) ?></span>
+              <?php render_region_badges($recentBadges[$row["npwr"]] ?? []); ?>
               <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
               <span><?= number_format((int)$row["trophy_count"]) ?> trophies</span>
             </div>
@@ -230,6 +234,7 @@ render_header("Trophy Project");
             <div class="mt-1 truncate text-sm app-muted"><?= htmlspecialchars($row["title_name"]) ?></div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs app-muted">
               <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($row["group_id"]) ?></span>
+              <?php render_region_badges($dlcBadges[$row["npwr"]] ?? []); ?>
               <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
               <span><?= number_format((int)($row["trophy_count"] ?: $row["defined_total"])) ?> trophies</span>
             </div>
