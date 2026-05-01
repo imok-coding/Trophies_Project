@@ -2,7 +2,9 @@ name: Scan NPWR shards
 
 on:
   schedule:
-    - cron: '0 0,6,12,18 * * *'
+    # GitHub schedules use UTC and top-of-hour runs can be delayed or dropped.
+    # This is 00:07, 06:07, 12:07, and 18:07 America/Chicago during daylight time.
+    - cron: '7 5,11,17,23 * * *'
   workflow_dispatch:
     inputs:
       npwrs:
