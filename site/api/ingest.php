@@ -206,6 +206,17 @@ try {
   }
 
   // PS Store region enrichment. Regions are intentionally limited to NA/EU/JP/CN.
+  $stmtClearRegions = $db->prepare("DELETE FROM game_regions WHERE npwr=?");
+  foreach (($data["clear_regions"] ?? []) as $npwrToClear) {
+    $npwr = (string)$npwrToClear;
+    if ($npwr === "") {
+      continue;
+    }
+
+    $stmtClearRegions->bind_param("s", $npwr);
+    $stmtClearRegions->execute();
+  }
+
   $stmtStoreLink = $db->prepare("
     INSERT INTO game_store_links (npwr, source_type, source_id, title, checked_utc)
     VALUES (?, ?, ?, ?, UTC_TIMESTAMP())

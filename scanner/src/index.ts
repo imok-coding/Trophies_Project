@@ -69,7 +69,8 @@ async function main() {
     nextCursor?: number,
     removed?: any[],
     storeLinks: any[] = [],
-    regions: any[] = []
+    regions: any[] = [],
+    clearRegions: string[] = []
   ) {
     const payload: any = {
       games,
@@ -77,7 +78,8 @@ async function main() {
       trophies,
       removed: removed ?? [],
       store_links: storeLinks,
-      regions
+      regions,
+      clear_regions: clearRegions
     };
 
     if (nextCursor != null) {
@@ -120,6 +122,7 @@ async function main() {
   const trophies: any[] = [];
   const storeLinks: any[] = [];
   const regions: any[] = [];
+  const clearRegions: string[] = [];
   const pendingTitleByNpwr = new Map<string, string>();
   let postedGames = 0;
   let invalidCount = 0;
@@ -134,7 +137,21 @@ async function main() {
 
   function storeRowsForResolution(currentNpwr: string, resolution: StoreRegionResolution | undefined) {
     if (!resolution) {
-      return { storeLinks: [], regions: [] };
+      return { storeLinks: [], regions: [], clearRegions: [] };
+    }
+
+    const availableRegions = resolution.regions.filter(region => region.available);
+    if (availableRegions.length !== 1) {
+      return {
+        storeLinks: [{
+          npwr: currentNpwr,
+          source_type: resolution.sourceType,
+          source_id: resolution.sourceId,
+          title: `${resolution.title ?? ""} (${availableRegions.length === 0 ? "no region match" : "ambiguous regions"})`.trim()
+        }],
+        regions: [],
+        clearRegions: [currentNpwr]
+      };
     }
 
     return {
@@ -144,7 +161,7 @@ async function main() {
         source_id: resolution.sourceId,
         title: resolution.title
       }],
-      regions: resolution.regions.map(region => ({
+      regions: availableRegions.map(region => ({
         npwr: currentNpwr,
         region_badge: region.badge,
         locale: region.locale,
@@ -152,7 +169,8 @@ async function main() {
         title: region.title,
         product_ids: region.productIds,
         error: region.error
-      }))
+      })),
+      clearRegions: [currentNpwr]
     };
   }
 
@@ -288,7 +306,8 @@ async function main() {
         nextCursor,
         [],
         storeRows.storeLinks,
-        storeRows.regions
+        storeRows.regions,
+        storeRows.clearRegions
       );
       postedGames += gameRows.length;
       const result = ingest.results?.[np];
@@ -300,6 +319,7 @@ async function main() {
       trophies.push(...trophyRows);
       storeLinks.push(...storeRows.storeLinks);
       regions.push(...storeRows.regions);
+      clearRegions.push(...storeRows.clearRegions);
       postedGames = games.length;
       pendingTitleByNpwr.set(np, String(gameRows[0]?.title_name ?? "Unknown"));
     }
@@ -308,7 +328,7 @@ async function main() {
   }
 
   if (explicitNpwrs.length > 0 || PSN_NAME) {
-    const ingest = await ingestScanResult(games, groups, trophies, undefined, [], storeLinks, regions);
+    const ingest = await ingestScanResult(games, groups, trophies, undefined, [], storeLinks, regions, clearRegions);
     for (const [np, title] of pendingTitleByNpwr) {
       const result = ingest.results?.[np];
       logNpwrResult(np, result === "updated" ? "Updated" : title);
