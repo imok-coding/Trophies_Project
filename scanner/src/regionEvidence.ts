@@ -28,11 +28,14 @@ export type RegionResolution = {
 
 const STORE_GRAPHQL_URL = "https://web.np.playstation.com/api/graphql/v1/op";
 const MOBILE_SEARCH_URL = "https://m.np.playstation.com/api/search/v1/universalSearch";
+const LEGACY_NPWR_LIST_URL = "https://nextgenupdate.com/forums/ps3-trophies-game-saves/773320-list-2384-folders-w-npwr-ids-titles.html";
 
 const OPERATION_HASHES = {
   metGetProductById: "a128042177bd93dd831164103d53b73ef790d56f51dae647064cb8f9d9fc9d1a",
   metGetConceptById: "cc90404ac049d935afbd9968aef523da2b6723abfb9d586e5f77ebf7c5289006"
 } as const;
+
+let legacyRegionMap: Promise<Map<string, { badge: RegionBadge; title: string; source: string }>> | undefined;
 
 export function badgeFromProductId(productId: string): RegionBadge | undefined {
   const prefix = productId.slice(0, 2).toUpperCase();
@@ -62,6 +65,90 @@ export function normalizeStoreTitle(value: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
+}
+
+function badgeFromLegacyMarker(marker: string | undefined): RegionBadge | undefined {
+  const value = (marker ?? "USA").trim().toUpperCase();
+  if (value === "USA" || value === "US" || value === "NA") return "NA";
+  if (value === "EUR" || value === "EU" || value === "PAL") return "EU";
+  if (value === "JPN" || value === "JP" || value === "JAPAN") return "JP";
+  if (value === "CHN" || value === "CN" || value === "CHINA") return "CN";
+  return undefined;
+}
+
+async function fetchLegacyRegionMap() {
+  const response = await fetch(LEGACY_NPWR_LIST_URL, {
+    headers: { "User-Agent": "TrophyProjectScanner/1.0" }
+  });
+  if (!response.ok) {
+    throw new Error(`Legacy NPWR list failed ${response.status}`);
+  }
+
+  const html = await response.text();
+  const text = decodeHtml(html)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/\r/g, "");
+  const map = new Map<string, { badge: RegionBadge; title: string; source: string }>();
+
+  const lines = text.split("\n").map(line => line.replace(/\s+/g, " ").trim());
+  for (let index = 0; index < lines.length; index++) {
+    let line = lines[index];
+    let match = line.match(/\b(NPWR\d{5}_00)\b\s+(.+?)(?:\s+\[(USA|EUR|JPN|CHN|NA|EU|JP|CN|PAL|JAPAN|CHINA)\])?$/i);
+    if (!match) {
+      const npwrOnly = line.match(/^\b(NPWR\d{5}_00)\b$/i);
+      if (!npwrOnly) continue;
+
+      const titleLine = lines.slice(index + 1).find(value => value !== "");
+      if (!titleLine) continue;
+      line = `${npwrOnly[1]} ${titleLine}`;
+      match = line.match(/\b(NPWR\d{5}_00)\b\s+(.+?)(?:\s+\[(USA|EUR|JPN|CHN|NA|EU|JP|CN|PAL|JAPAN|CHINA)\])?$/i);
+      if (!match) continue;
+    }
+
+    const npwr = match[1].toUpperCase();
+    const title = match[2].trim();
+    const badge = badgeFromLegacyMarker(match[3]);
+    if (!badge) continue;
+    map.set(npwr, { badge, title, source: LEGACY_NPWR_LIST_URL });
+  }
+
+  return map;
+}
+
+async function resolveLegacyRegion(npwr: string, titleName: string): Promise<RegionEvidence[]> {
+  legacyRegionMap ??= fetchLegacyRegionMap();
+  const map = await legacyRegionMap;
+  const row = map.get(npwr);
+  if (!row) return [];
+
+  const scanned = normalizeStoreTitle(titleName);
+  const listed = normalizeStoreTitle(row.title);
+  if (scanned === "" || listed === "" || scanned !== listed) return [];
+
+  return [{
+    npwr,
+    region_badge: row.badge,
+    source_type: "legacy_npwr_list",
+    source_id: npwr,
+    confidence: 82,
+    evidence: {
+      titleName,
+      listedTitle: row.title,
+      source: row.source,
+      verification: "NPWR and normalized title matched legacy NPWR folder list"
+    }
+  }];
 }
 
 function titleFromSearchResult(result: any): string {
@@ -197,15 +284,17 @@ async function titleIdsVerifiedForNpwr(auth: Auth, npwr: string, titleIds: strin
 
 export async function resolveVerifiedRegionsForNpwr(auth: Auth, npwr: string, titleName: string): Promise<RegionResolution> {
   const checked = [npwr];
+  const fallbackEvidence = await resolveLegacyRegion(npwr, titleName).catch(() => []);
   const wanted = normalizeStoreTitle(titleName);
-  if (wanted === "") return { checked, evidence: [], regions: [] };
+  if (wanted === "") return { checked, evidence: fallbackEvidence, regions: rowsForSingleRegion(npwr, titleName, fallbackEvidence) };
 
-  const search = await mobileGameSearch(auth, titleName);
+  const search = await mobileGameSearch(auth, titleName).catch(() => undefined);
+  if (!search) return { checked, evidence: fallbackEvidence, regions: rowsForSingleRegion(npwr, titleName, fallbackEvidence) };
   const domain = (search as any)?.domainResponses?.find((item: any) => item?.domain === "MobileGames")
     ?? (search as any)?.domainResponses?.[0];
   const results = Array.isArray(domain?.results) ? domain.results : [];
   const exactResults = results.filter((result: any) => normalizeStoreTitle(titleFromSearchResult(result)) === wanted);
-  if (exactResults.length === 0) return { checked, evidence: [], regions: [] };
+  if (exactResults.length === 0) return { checked, evidence: fallbackEvidence, regions: rowsForSingleRegion(npwr, titleName, fallbackEvidence) };
 
   const seedConcepts = new Set<string>();
   const seedProducts = new Set<string>();
@@ -217,7 +306,7 @@ export async function resolveVerifiedRegionsForNpwr(auth: Auth, npwr: string, ti
 
   const { productIds, titleIds } = await expandStoreCandidateIds(seedConcepts, seedProducts);
   const verifiedTitleIds = await titleIdsVerifiedForNpwr(auth, npwr, [...titleIds].slice(0, 50));
-  const evidence: RegionEvidence[] = [];
+  const evidence: RegionEvidence[] = [...fallbackEvidence];
 
   for (const productId of productIds) {
     const titleId = titleIdFromProductId(productId);
@@ -251,17 +340,22 @@ export async function resolveVerifiedRegionsForNpwr(auth: Auth, npwr: string, ti
     });
   }
 
-  const uniqueBadges = [...new Set(evidence.map(row => row.region_badge))];
-  const regions = uniqueBadges.length === 1
-    ? [{
-        npwr,
-        region_badge: uniqueBadges[0],
-        locale: "verified",
-        available: true,
-        title: titleName,
-        product_ids: evidence.map(row => row.product_id).filter((value): value is string => Boolean(value))
-      }]
-    : [];
+  return { checked, evidence, regions: rowsForSingleRegion(npwr, titleName, evidence) };
+}
 
-  return { checked, evidence, regions };
+function rowsForSingleRegion(npwr: string, titleName: string, evidence: RegionEvidence[]) {
+  const uniqueBadges = [...new Set(evidence.map(row => row.region_badge))];
+  if (uniqueBadges.length !== 1) return [];
+
+  const productIds = evidence
+    .map(row => row.product_id)
+    .filter((value): value is string => Boolean(value));
+  return [{
+    npwr,
+    region_badge: uniqueBadges[0],
+    locale: evidence.some(row => row.confidence === 100) ? "verified" : "legacy",
+    available: true,
+    title: titleName,
+    product_ids: productIds
+  }];
 }

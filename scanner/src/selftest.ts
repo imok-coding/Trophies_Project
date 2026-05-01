@@ -28,6 +28,7 @@ assert.equal(badgeFromLegacyTitleId("NPEA00004_00"), "EU");
 assert.equal(badgeFromLegacyTitleId("NPJA00001_00"), "JP");
 assert.equal(badgeFromLegacyTitleId("NPUA00001_00"), "NA");
 assert.equal(normalizeStoreTitle("THE EYE OF JUDGMENT™ Trophies"), "the eye of judgment");
+assert.equal(normalizeStoreTitle("THE EYE OF JUDGMENT™"), "the eye of judgment");
 assert.equal(normalizeStoreTitle("Marvel's Spider-Man 2 Trophy Set"), "marvels spider man 2");
 
 console.log("Scanner self-test OK");
