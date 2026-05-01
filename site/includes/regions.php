@@ -42,6 +42,12 @@ function region_badges_for_npwrs(mysqli $db, array $npwrs): array {
     }
   }
 
+  foreach ($badges as $npwr => $values) {
+    if (count($values) !== 1) {
+      $badges[$npwr] = [];
+    }
+  }
+
   return $badges;
 }
 
@@ -52,4 +58,3 @@ function render_region_badges(array $badges): void {
     echo '</span>';
   }
 }
-
