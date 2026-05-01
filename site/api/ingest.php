@@ -55,6 +55,8 @@ try {
     VALUES (?, ?, UTC_TIMESTAMP())
   ");
   $stmtDeleteGame = $db->prepare("DELETE FROM games WHERE npwr=?");
+  $stmtDeleteRegions = $db->prepare("DELETE FROM game_regions WHERE npwr=?");
+  $stmtDeleteStoreLinks = $db->prepare("DELETE FROM game_store_links WHERE npwr=?");
 
   foreach (($data["removed"] ?? []) as $r) {
     $npwr = (string)($r["npwr"] ?? "");
@@ -73,6 +75,10 @@ try {
 
       $stmtDeleteGame->bind_param("s", $npwr);
       $stmtDeleteGame->execute();
+      $stmtDeleteRegions->bind_param("s", $npwr);
+      $stmtDeleteRegions->execute();
+      $stmtDeleteStoreLinks->bind_param("s", $npwr);
+      $stmtDeleteStoreLinks->execute();
       $results[$npwr] = "removed";
     } else {
       $results[$npwr] = "invalid";

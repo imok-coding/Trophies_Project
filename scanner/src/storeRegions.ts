@@ -9,7 +9,17 @@ export type StoreRegion = {
   error?: string;
 };
 
+export type StoreRegionResolution = {
+  sourceType: "concept" | "product";
+  sourceId: string;
+  title?: string;
+  regions: StoreRegion[];
+};
+
+type AuthLike = { accessToken: string };
+
 const STORE_GRAPHQL_URL = "https://web.np.playstation.com/api/graphql/v1/op";
+const MOBILE_SEARCH_URL = "https://m.np.playstation.com/api/search/v1/universalSearch";
 
 const OPERATION_HASHES = {
   metGetProductById: "a128042177bd93dd831164103d53b73ef790d56f51dae647064cb8f9d9fc9d1a",
@@ -32,6 +42,19 @@ export function badgeFromProductId(productId: string): RegionBadge | undefined {
   return undefined;
 }
 
+export function normalizeStoreTitle(value: string): string {
+  return value
+    .replace(/[™®©]/g, "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(trophies|trophy\s+set|trophy\s+list)\b/gi, "")
+    .replace(/['’`]/g, "")
+    .replace(/[.,:;!?()[\]{}_\-–—/\\|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 async function storeGraphql(operationName: keyof typeof OPERATION_HASHES, variables: Record<string, string>, locale: string) {
   const url = new URL(STORE_GRAPHQL_URL);
   url.searchParams.set("operationName", operationName);
@@ -52,6 +75,28 @@ async function storeGraphql(operationName: keyof typeof OPERATION_HASHES, variab
 
   const body = await response.json().catch(() => ({}));
   return body as any;
+}
+
+async function mobileGameSearch(auth: AuthLike, titleName: string) {
+  const response = await fetch(MOBILE_SEARCH_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${auth.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      searchTerm: titleName,
+      domainRequests: [
+        { domain: "MobileGames" }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Store search failed ${response.status}`);
+  }
+
+  return await response.json() as any;
 }
 
 function collectProductIds(value: unknown, out = new Set<string>()) {
@@ -130,3 +175,57 @@ export async function fetchConceptRegions(conceptId: string): Promise<StoreRegio
   return regions;
 }
 
+export async function resolveStoreRegionsForTitle(auth: AuthLike, titleName: string): Promise<StoreRegionResolution | undefined> {
+  const wanted = normalizeStoreTitle(titleName);
+  if (wanted === "") return undefined;
+
+  const data = await mobileGameSearch(auth, titleName);
+  const domain = data?.domainResponses?.find((item: any) => item?.domain === "MobileGames")
+    ?? data?.domainResponses?.[0];
+  const results = Array.isArray(domain?.results) ? domain.results : [];
+
+  const candidates = results
+    .map((result: any) => {
+      const concept = result?.conceptMetadata;
+      const product = result?.productMetadata;
+      const resultTitle = concept?.nameEn ?? concept?.name ?? product?.nameEn ?? product?.name ?? "";
+      const normalized = normalizeStoreTitle(resultTitle);
+      return {
+        result,
+        title: resultTitle,
+        normalized,
+        exact: normalized === wanted,
+        startsWith: normalized !== "" && (normalized.startsWith(wanted) || wanted.startsWith(normalized))
+      };
+    })
+    .filter((candidate: any) => candidate.normalized !== "");
+
+  const match = candidates.find((candidate: any) => candidate.exact)
+    ?? candidates.find((candidate: any) => candidate.startsWith)
+    ?? candidates[0];
+  if (!match) return undefined;
+
+  const conceptId = match.result?.conceptMetadata?.id != null
+    ? String(match.result.conceptMetadata.id)
+    : undefined;
+  if (conceptId) {
+    return {
+      sourceType: "concept",
+      sourceId: conceptId,
+      title: match.title,
+      regions: await fetchConceptRegions(conceptId)
+    };
+  }
+
+  const productId = match.result?.productMetadata?.id != null
+    ? String(match.result.productMetadata.id)
+    : undefined;
+  if (!productId) return undefined;
+
+  return {
+    sourceType: "product",
+    sourceId: productId,
+    title: match.title,
+    regions: await fetchProductRegions(productId)
+  };
+}
