@@ -149,12 +149,7 @@ async function main() {
     const availableRegions = resolution.regions.filter(region => region.available);
     if (availableRegions.length !== 1) {
       return {
-        storeLinks: [{
-          npwr: currentNpwr,
-          source_type: resolution.sourceType,
-          source_id: resolution.sourceId,
-          title: `${resolution.title ?? ""} (${availableRegions.length === 0 ? "no region match" : "ambiguous regions"})`.trim()
-        }],
+        storeLinks: [],
         regions: [],
         clearRegions: [currentNpwr]
       };

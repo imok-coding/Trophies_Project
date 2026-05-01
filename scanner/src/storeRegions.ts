@@ -333,8 +333,7 @@ export async function resolveStoreRegionsForTitle(auth: AuthLike, titleName: str
     .filter((candidate: any) => candidate.normalized !== "");
 
   const match = candidates.find((candidate: any) => candidate.exact)
-    ?? candidates.find((candidate: any) => candidate.startsWith)
-    ?? candidates[0];
+    ?? candidates.find((candidate: any) => candidate.startsWith);
   if (!match) return undefined;
 
   const conceptId = match.result?.conceptMetadata?.id != null
