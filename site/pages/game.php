@@ -3,6 +3,12 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/regions.php';
 
+if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/game.php") {
+  $query = $_SERVER["QUERY_STRING"] ?? "";
+  header("Location: /game" . ($query !== "" ? "?" . $query : ""), true, 301);
+  exit;
+}
+
 $npwr = $_GET["npwr"] ?? "";
 $db = db_connect();
 

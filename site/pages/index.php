@@ -135,7 +135,7 @@ render_header("Trophy Project");
       <p class="mt-3 max-w-2xl text-[15px] leading-6 app-muted">
         Browse scanned NPWR trophy lists, inspect groups, and build a clean trophy roadmap from the local database.
       </p>
-      <form action="/pages/search.php" method="get" class="mt-5 flex max-w-2xl gap-2">
+      <form action="/search" method="get" class="mt-5 flex max-w-2xl gap-2">
         <input
           name="q"
           class="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 focus:bg-white/[0.11] focus:ring-4 focus:ring-cyan-400/10"
@@ -147,17 +147,17 @@ render_header("Trophy Project");
     </div>
 
     <div class="grid grid-cols-2 gap-2">
-      <a href="/pages/planner.php" class="app-cell p-4 transition hover:-translate-y-0.5">
+      <a href="/planner" class="app-cell p-4 transition hover:-translate-y-0.5">
         <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Planner</div>
         <div class="mt-2 text-2xl font-semibold text-white">Roadmap</div>
         <div class="mt-1 text-xs app-muted">Build trophy plans</div>
       </a>
-      <a href="/pages/psn-user.php" class="app-cell p-4 transition hover:-translate-y-0.5">
+      <a href="/psn-user" class="app-cell p-4 transition hover:-translate-y-0.5">
         <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">PSN API</div>
         <div class="mt-2 text-2xl font-semibold text-white">Users</div>
         <div class="mt-1 text-xs app-muted">Search online IDs</div>
       </a>
-      <a href="/pages/search.php" class="app-cell p-4 transition hover:-translate-y-0.5">
+      <a href="/search" class="app-cell p-4 transition hover:-translate-y-0.5">
         <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Library</div>
         <div class="mt-2 text-2xl font-semibold text-white">Browse</div>
         <div class="mt-1 text-xs app-muted">Find NPWR lists</div>
@@ -194,7 +194,7 @@ render_header("Trophy Project");
     </div>
     <div class="divide-y divide-white/10">
       <?php foreach ($recent as $row): ?>
-        <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
+        <a href="/game?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
           <div class="grid h-16 w-16 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
             <?php if (!empty($row["icon_url"])): ?>
               <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />
@@ -228,7 +228,7 @@ render_header("Trophy Project");
     <div class="divide-y divide-white/10">
       <?php foreach ($dlc as $row): ?>
         <?php $icon = $row["group_icon_url"] ?: $row["game_icon_url"]; ?>
-        <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
+        <a href="/game?npwr=<?= urlencode($row["npwr"]) ?>" class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
           <div class="grid h-16 w-16 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
             <?php if (!empty($icon)): ?>
               <img src="<?= htmlspecialchars($icon) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />

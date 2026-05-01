@@ -4,6 +4,12 @@ require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/search.php';
 require_once __DIR__ . '/../includes/regions.php';
 
+if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/search.php") {
+  $query = $_SERVER["QUERY_STRING"] ?? "";
+  header("Location: /search" . ($query !== "" ? "?" . $query : ""), true, 301);
+  exit;
+}
+
 $q = trim($_GET["q"] ?? "");
 $db = db_connect();
 $results = [];
@@ -45,7 +51,7 @@ render_header("Search");
 
   <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
   <?php foreach ($results as $row): ?>
-    <a href="/pages/game.php?npwr=<?= urlencode($row["npwr"]) ?>" class="app-cell flex gap-3 p-3 transition hover:-translate-y-0.5">
+    <a href="/game?npwr=<?= urlencode($row["npwr"]) ?>" class="app-cell flex gap-3 p-3 transition hover:-translate-y-0.5">
       <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
         <?php if (!empty($row["icon_url"])): ?>
           <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />

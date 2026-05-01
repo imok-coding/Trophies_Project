@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../includes/layout.php';
 
+if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/psn-user.php") {
+  header("Location: /psn-user", true, 301);
+  exit;
+}
+
 render_header('PSN User Search');
 ?>
 <section class="mb-5 app-panel overflow-hidden p-5 sm:p-6">

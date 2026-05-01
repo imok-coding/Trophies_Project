@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../includes/layout.php';
 
+if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/planner.php") {
+  header("Location: /planner", true, 301);
+  exit;
+}
+
 render_header('Trophy Planner');
 ?>
 <section class="mb-5 app-panel overflow-hidden p-5 sm:p-6">

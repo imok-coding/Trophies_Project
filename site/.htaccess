@@ -1,0 +1,21 @@
+RewriteEngine On
+
+RewriteRule ^search/?$ pages/search.php [L,QSA]
+RewriteRule ^game/?$ pages/game.php [L,QSA]
+RewriteRule ^planner/?$ pages/planner.php [L,QSA]
+RewriteRule ^psn-user/?$ pages/psn-user.php [L,QSA]
+
+RewriteCond %{THE_REQUEST} \s/+pages/index\.php[?\s] [NC]
+RewriteRule ^pages/index\.php$ / [R=301,L]
+
+RewriteCond %{THE_REQUEST} \s/+pages/search\.php[?\s] [NC]
+RewriteRule ^pages/search\.php$ /search [R=301,L,QSA]
+
+RewriteCond %{THE_REQUEST} \s/+pages/game\.php[?\s] [NC]
+RewriteRule ^pages/game\.php$ /game [R=301,L,QSA]
+
+RewriteCond %{THE_REQUEST} \s/+pages/planner\.php[?\s] [NC]
+RewriteRule ^pages/planner\.php$ /planner [R=301,L,QSA]
+
+RewriteCond %{THE_REQUEST} \s/+pages/psn-user\.php[?\s] [NC]
+RewriteRule ^pages/psn-user\.php$ /psn-user [R=301,L,QSA]
