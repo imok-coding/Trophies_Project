@@ -4,8 +4,6 @@
   "type": "module",
   "scripts": {
     "scan": "node --enable-source-maps dist/index.js",
-    "region:scan": "node --enable-source-maps dist/regionScan.js",
-    "region:probe": "node --enable-source-maps dist/regionProbe.js",
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --enable-source-maps dist/selftest.js"
   },

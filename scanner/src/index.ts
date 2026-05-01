@@ -11,7 +11,6 @@ import {
 } from "./psn.js";
 import { getIgdbToken, igdbSearchGame } from "./igdb.js";
 import { getAntiBotCookie, postIngest } from "./post.js";
-import { resolveSerialStationRegionsForNpwr, resolveStoreRegionsForTitle, type StoreRegionResolution } from "./storeRegions.js";
 
 function env(name: string, fallback?: string) {
   const v = process.env[name] ?? fallback;
@@ -23,12 +22,6 @@ const SHARD_INDEX = Number(env("SHARD_INDEX"));
 const SHARD_COUNT = Number(env("SHARD_COUNT", "20"));
 const BATCH_SIZE = Number(env("BATCH_SIZE", "5000"));
 const SCAN_INTERVAL_MS = Number(env("SCAN_INTERVAL_MS", "600"));
-const SCAN_REGIONS = env("SCAN_REGIONS", "true").toLowerCase() !== "false";
-const REGION_SOURCES = env("REGION_SOURCES", "serialstation,store")
-  .toLowerCase()
-  .split(",")
-  .map(value => value.trim())
-  .filter(Boolean);
 const NPWRS = process.env.NPWRS ?? "";
 const PSN_NAME = process.env.PSN_NAME ?? "";
 
@@ -74,18 +67,12 @@ async function main() {
     trophies: any[],
     nextCursor?: number,
     removed?: any[],
-    storeLinks: any[] = [],
-    regions: any[] = [],
-    clearRegions: string[] = []
   ) {
     const payload: any = {
       games,
       groups,
       trophies,
-      removed: removed ?? [],
-      store_links: storeLinks,
-      regions,
-      clear_regions: clearRegions
+      removed: removed ?? []
     };
 
     if (nextCursor != null) {
@@ -126,9 +113,6 @@ async function main() {
   const games: any[] = [];
   const groups: any[] = [];
   const trophies: any[] = [];
-  const storeLinks: any[] = [];
-  const regions: any[] = [];
-  const clearRegions: string[] = [];
   const pendingTitleByNpwr = new Map<string, string>();
   let postedGames = 0;
   let invalidCount = 0;
@@ -141,77 +125,6 @@ async function main() {
     console.log(`${currentNpwr}: ${result}`);
   }
 
-  function storeRowsForResolution(currentNpwr: string, resolution: StoreRegionResolution | undefined) {
-    if (!resolution) {
-      return { storeLinks: [], regions: [], clearRegions: [] };
-    }
-
-    const availableRegions = resolution.regions.filter(region => region.available);
-    if (availableRegions.length !== 1) {
-      return {
-        storeLinks: [],
-        regions: [],
-        clearRegions: [currentNpwr]
-      };
-    }
-
-    return {
-      storeLinks: [{
-        npwr: currentNpwr,
-        source_type: resolution.sourceType,
-        source_id: resolution.sourceId,
-        title: resolution.title
-      }],
-      regions: availableRegions.map(region => ({
-        npwr: currentNpwr,
-        region_badge: region.badge,
-        locale: region.locale,
-        available: region.available,
-        title: region.title,
-        product_ids: region.productIds,
-        error: region.error
-      })),
-      clearRegions: [currentNpwr]
-    };
-  }
-
-  async function resolveRegions(currentNpwr: string, titleName: string, trophySetVersion?: string) {
-    if (!SCAN_REGIONS) return undefined;
-
-    if (REGION_SOURCES.includes("serialstation")) {
-      const serialStation = await resolveSerialStationRegionsForNpwr(currentNpwr, trophySetVersion);
-      if (serialStation) {
-        const available = serialStation.regions.filter(region => region.available);
-        if (available.length !== 0 || !REGION_SOURCES.includes("store")) {
-          return serialStation;
-        }
-      }
-    }
-
-    if (REGION_SOURCES.includes("store")) {
-      return await resolveStoreRegionsForTitle(auth, titleName);
-    }
-
-    return undefined;
-  }
-
-  function logRegionResolution(currentNpwr: string, resolution: StoreRegionResolution | undefined) {
-    if (!SCAN_REGIONS) return;
-    if (!resolution) {
-      console.log(`${currentNpwr}: Regions not found`);
-      return;
-    }
-
-    const available = resolution.regions.filter(region => region.available).map(region => region.badge);
-    if (available.length === 1) {
-      console.log(`${currentNpwr}: Regions ${available[0]} (${resolution.sourceType}:${resolution.sourceId})`);
-    } else if (available.length > 1) {
-      console.log(`${currentNpwr}: Regions ambiguous ${available.join(", ")} (${resolution.sourceType}:${resolution.sourceId})`);
-    } else {
-      console.log(`${currentNpwr}: Regions none (${resolution.sourceType}:${resolution.sourceId})`);
-    }
-  }
-
   for (let index = 0; index < scanTitles.length; index++) {
     const scanTitle = scanTitles[index];
     const np = scanTitle.npCommunicationId;
@@ -222,7 +135,6 @@ async function main() {
     const gameRows: any[] = [];
     const groupRows: any[] = [];
     const trophyRows: any[] = [];
-    let regionResolution: StoreRegionResolution | undefined;
 
     try {
       const g = await fetchTitleGroups(auth, np, scanTitle.npServiceName);
@@ -285,13 +197,6 @@ async function main() {
           icon_url: t.trophyIconUrl ?? ""
         });
       }
-
-      try {
-        regionResolution = await resolveRegions(np, title_name, trophy_set_ver);
-        logRegionResolution(np, regionResolution);
-      } catch (regionError) {
-        console.log(`${np}: Regions Error - ${errorSummary(regionError).replaceAll("\n", " ")}`);
-      }
     } catch (e) {
       const retryableTitleLookup = e instanceof TitleLookupError && e.retryable;
       if (retryableTitleLookup) {
@@ -328,28 +233,20 @@ async function main() {
     }
 
     if (explicitNpwrs.length === 0 && !PSN_NAME) {
-      const storeRows = storeRowsForResolution(np, regionResolution);
       const ingest = await ingestScanResult(
         gameRows,
         groupRows,
         trophyRows,
         nextCursor,
-        [],
-        storeRows.storeLinks,
-        storeRows.regions,
-        storeRows.clearRegions
+        []
       );
       postedGames += gameRows.length;
       const result = ingest.results?.[np];
       logNpwrResult(np, result === "updated" ? "Updated" : String(gameRows[0]?.title_name ?? "Unknown"));
     } else {
-      const storeRows = storeRowsForResolution(np, regionResolution);
       games.push(...gameRows);
       groups.push(...groupRows);
       trophies.push(...trophyRows);
-      storeLinks.push(...storeRows.storeLinks);
-      regions.push(...storeRows.regions);
-      clearRegions.push(...storeRows.clearRegions);
       postedGames = games.length;
       pendingTitleByNpwr.set(np, String(gameRows[0]?.title_name ?? "Unknown"));
     }
@@ -358,7 +255,7 @@ async function main() {
   }
 
   if (explicitNpwrs.length > 0 || PSN_NAME) {
-    const ingest = await ingestScanResult(games, groups, trophies, undefined, [], storeLinks, regions, clearRegions);
+    const ingest = await ingestScanResult(games, groups, trophies, undefined, []);
     for (const [np, title] of pendingTitleByNpwr) {
       const result = ingest.results?.[np];
       logNpwrResult(np, result === "updated" ? "Updated" : title);

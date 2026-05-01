@@ -205,73 +205,7 @@ try {
     $stmtTrophy->execute();
   }
 
-  // PS Store region enrichment. Regions are intentionally limited to NA/EU/JP/CN.
-  $stmtClearRegions = $db->prepare("DELETE FROM game_regions WHERE npwr=?");
-  $stmtClearStoreLinks = $db->prepare("DELETE FROM game_store_links WHERE npwr=?");
-  foreach (($data["clear_regions"] ?? []) as $npwrToClear) {
-    $npwr = (string)$npwrToClear;
-    if ($npwr === "") {
-      continue;
-    }
-
-    $stmtClearRegions->bind_param("s", $npwr);
-    $stmtClearRegions->execute();
-    $stmtClearStoreLinks->bind_param("s", $npwr);
-    $stmtClearStoreLinks->execute();
-  }
-
-  $stmtStoreLink = $db->prepare("
-    INSERT INTO game_store_links (npwr, source_type, source_id, title, checked_utc)
-    VALUES (?, ?, ?, ?, UTC_TIMESTAMP())
-    ON DUPLICATE KEY UPDATE
-      title=VALUES(title),
-      checked_utc=UTC_TIMESTAMP()
-  ");
-
-  foreach (($data["store_links"] ?? []) as $link) {
-    $npwr = (string)($link["npwr"] ?? "");
-    $source_type = (string)($link["source_type"] ?? "");
-    $source_id = (string)($link["source_id"] ?? "");
-    $title = isset($link["title"]) ? (string)$link["title"] : null;
-    if ($npwr === "" || $source_type === "" || $source_id === "") {
-      continue;
-    }
-
-    $stmtStoreLink->bind_param("ssss", $npwr, $source_type, $source_id, $title);
-    $stmtStoreLink->execute();
-  }
-
-  $stmtRegion = $db->prepare("
-    INSERT INTO game_regions (npwr, region_badge, locale, available, title, product_ids, error_message, checked_utc)
-    VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
-    ON DUPLICATE KEY UPDATE
-      locale=VALUES(locale),
-      available=VALUES(available),
-      title=VALUES(title),
-      product_ids=VALUES(product_ids),
-      error_message=VALUES(error_message),
-      checked_utc=UTC_TIMESTAMP()
-  ");
-
-  foreach (($data["regions"] ?? []) as $region) {
-    $npwr = (string)($region["npwr"] ?? "");
-    $region_badge = (string)($region["region_badge"] ?? "");
-    if (!in_array($region_badge, ["NA", "EU", "JP", "CN"], true)) {
-      continue;
-    }
-    $locale = (string)($region["locale"] ?? "");
-    $available = !empty($region["available"]) ? 1 : 0;
-    $title = isset($region["title"]) ? (string)$region["title"] : null;
-    $product_ids = json_encode(array_values($region["product_ids"] ?? []), JSON_UNESCAPED_SLASHES);
-    $error_message = isset($region["error"]) ? (string)$region["error"] : null;
-    if ($npwr === "" || $locale === "") {
-      continue;
-    }
-
-    $stmtRegion->bind_param("sssisss", $npwr, $region_badge, $locale, $available, $title, $product_ids, $error_message);
-    $stmtRegion->execute();
-    $results[$npwr] = "updated";
-  }
+  // Region enrichment is intentionally disabled until it can be rebuilt from exact NPWR evidence.
 
   // Save shard scan cursor (optional)
   if (isset($data["scan_state"])) {
