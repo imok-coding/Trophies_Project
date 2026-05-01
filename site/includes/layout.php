@@ -67,7 +67,7 @@ function render_header(string $title = "Trophy Project") { ?>
 <body class="min-h-screen antialiased">
   <header class="app-glass sticky top-0 z-50">
     <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-      <a href="/pages/index.php" class="flex min-w-0 items-center gap-3">
+      <a href="/" class="flex min-w-0 items-center gap-3">
         <span class="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-cyan-300/25 bg-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.24)]">
           <img src="/assets/logo.webp" class="h-full w-full object-cover" alt="" />
         </span>

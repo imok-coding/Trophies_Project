@@ -3,6 +3,11 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/regions.php';
 
+if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/index.php") {
+  header("Location: /", true, 301);
+  exit;
+}
+
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
