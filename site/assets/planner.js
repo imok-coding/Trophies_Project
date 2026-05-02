@@ -49,11 +49,11 @@ function trophyIcon(type) {
     bronze: ["e61e35.png", "B"],
   };
   const [file, alt] = icons[type] || icons.bronze;
-  return `<img src="/assets/trophy/${file}" alt="${alt}" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" />`;
+  return `<img src="/assets/trophy/${file}" alt="${alt}" class="inline-block h-5 w-5 align-[-4px]" loading="lazy" />`;
 }
 
 function countWithIcon(value, type) {
-  return `<span class="inline-flex items-center gap-1">${format(value)}${trophyIcon(type)}</span>`;
+  return `<span class="inline-flex items-center gap-1 text-sm font-semibold">${format(value)}${trophyIcon(type)}</span>`;
 }
 
 function levelFromPoints(total) {

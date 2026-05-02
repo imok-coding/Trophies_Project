@@ -53,13 +53,13 @@ render_header('Trophy Planner');
         <div>
           <h2 class="text-lg font-semibold text-white">Planned Games</h2>
           <p id="planner-breakdown" class="mt-1 text-sm app-muted">
-            <span class="inline-flex items-center gap-1">0<img src="/assets/trophy/470bd2.png" alt="P" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" /></span>
+            <span class="inline-flex items-center gap-1 text-sm font-semibold">0<img src="/assets/trophy/470bd2.png" alt="P" class="inline-block h-5 w-5 align-[-4px]" loading="lazy" /></span>
             &middot;
-            <span class="inline-flex items-center gap-1">0<img src="/assets/trophy/7186c5.png" alt="G" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" /></span>
+            <span class="inline-flex items-center gap-1 text-sm font-semibold">0<img src="/assets/trophy/7186c5.png" alt="G" class="inline-block h-5 w-5 align-[-4px]" loading="lazy" /></span>
             &middot;
-            <span class="inline-flex items-center gap-1">0<img src="/assets/trophy/f179ed.png" alt="S" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" /></span>
+            <span class="inline-flex items-center gap-1 text-sm font-semibold">0<img src="/assets/trophy/f179ed.png" alt="S" class="inline-block h-5 w-5 align-[-4px]" loading="lazy" /></span>
             &middot;
-            <span class="inline-flex items-center gap-1">0<img src="/assets/trophy/e61e35.png" alt="B" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" /></span>
+            <span class="inline-flex items-center gap-1 text-sm font-semibold">0<img src="/assets/trophy/e61e35.png" alt="B" class="inline-block h-5 w-5 align-[-4px]" loading="lazy" /></span>
           </p>
         </div>
         <select id="planner-filter" class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/40">
