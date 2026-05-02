@@ -10,9 +10,9 @@ render_header('PSN User Search');
 ?>
 <section class="mb-5 app-panel overflow-hidden p-5 sm:p-6">
   <div class="text-[13px] font-semibold uppercase tracking-wide text-cyan-300">PSN API</div>
-  <h1 class="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Search PSN users</h1>
+  <h1 class="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">PSN profile lookup</h1>
   <p class="mt-2 max-w-3xl text-[15px] leading-6 app-muted">
-    Find PlayStation Network users by online ID using the PSN API.
+    Search an exact online ID to view earned trophies and trophy lists from PSN.
   </p>
 
   <form id="psn-user-search-form" class="mt-5 flex max-w-2xl gap-2">
@@ -26,11 +26,11 @@ render_header('PSN User Search');
   </form>
 </section>
 
-<section class="grid gap-5 lg:grid-cols-[24rem_1fr]">
-  <div id="psn-user-results" class="space-y-2">
-    <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm app-muted">Search for a PSN user to see matching profiles.</div>
+<section class="space-y-5">
+  <div id="psn-user-results">
+    <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm app-muted">Search for a PSN user to load their profile.</div>
   </div>
-  <div id="psn-user-titles" class="space-y-2"></div>
+  <div id="psn-user-titles"></div>
 </section>
 
 <script src="/assets/psn-user-search.js"></script>

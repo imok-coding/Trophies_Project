@@ -5,7 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 $accountId = trim((string)($_GET['accountId'] ?? ''));
-$limit = max(1, min(200, (int)($_GET['limit'] ?? 100)));
+$limit = max(1, min(800, (int)($_GET['limit'] ?? 800)));
 
 if ($accountId === '') {
   http_response_code(400);
