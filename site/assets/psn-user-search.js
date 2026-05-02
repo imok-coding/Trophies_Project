@@ -168,10 +168,19 @@ function trophyGroupSections(detail, title) {
       const earnedCount = trophies.filter((trophy) => trophy.earned).length;
       const groupIcon = group.iconUrl || (group.id === "default" ? title.iconUrl : "");
       const groupLabel = group.id === "default" ? "Base Game" : "DLC";
+      const dlcIndex = groups.filter((candidate) => candidate.id !== "default").findIndex((candidate) => candidate.id === group.id) + 1;
+      const dlcHeader = group.id === "default" ? "" : `
+        <div class="bg-[#35699f] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white">
+          DLC Trophy Pack ${format(dlcIndex)}
+        </div>
+      `;
+      const sectionTone = group.id === "default" ? "bg-white/[0.04]" : "bg-[#202123]";
+      const rowTone = group.id === "default" ? "" : "bg-[#202123]";
 
       return `
         <section class="overflow-hidden rounded-lg border border-white/10">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+          ${dlcHeader}
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 ${sectionTone} px-4 py-3">
             <div class="flex min-w-0 items-center gap-3">
               <div class="grid h-14 w-14 flex-shrink-0 place-items-center overflow-hidden rounded bg-slate-950 p-1">
                 ${groupIcon ? `<img src="${escapeHtml(groupIcon)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
@@ -184,7 +193,7 @@ function trophyGroupSections(detail, title) {
             </div>
             <div class="flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(group.earned || {})}</div>
           </div>
-          <div>${trophies.map(trophyRow).join("")}</div>
+          <div class="${rowTone}">${trophies.map(trophyRow).join("")}</div>
         </section>
       `;
     })
