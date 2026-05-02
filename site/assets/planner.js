@@ -38,7 +38,7 @@ function format(value) {
 }
 
 function countText(counts = {}) {
-  return `${format(counts.platinum)}<span class="font-bold text-sky-300">P</span> ${format(counts.gold)}<span class="font-bold text-amber-300">G</span> ${format(counts.silver)}<span class="font-bold text-slate-200">S</span> ${format(counts.bronze)}<span class="font-bold text-orange-300">B</span>`;
+  return `${format(counts.platinum)}<span class="font-bold text-sky-400">P</span> ${format(counts.gold)}<span class="font-bold text-amber-300">G</span> ${format(counts.silver)}<span class="font-bold text-slate-300">S</span> ${format(counts.bronze)}<span class="font-bold text-orange-300">B</span>`;
 }
 
 function levelFromPoints(total) {
@@ -105,7 +105,7 @@ function renderSummary() {
   els.trophyCount.textContent = format(totals.counts.total);
   els.points.textContent = format(totals.totalPoints);
   els.level.textContent = format(levelFromPoints(totals.totalPoints));
-  els.breakdown.innerHTML = `${format(totals.counts.platinum)}<span class="font-bold text-sky-300">P</span> &middot; ${format(totals.counts.gold)}<span class="font-bold text-amber-300">G</span> &middot; ${format(totals.counts.silver)}<span class="font-bold text-slate-200">S</span> &middot; ${format(totals.counts.bronze)}<span class="font-bold text-orange-300">B</span>`;
+  els.breakdown.innerHTML = `${format(totals.counts.platinum)}<span class="font-bold text-sky-400">P</span> &middot; ${format(totals.counts.gold)}<span class="font-bold text-amber-300">G</span> &middot; ${format(totals.counts.silver)}<span class="font-bold text-slate-300">S</span> &middot; ${format(totals.counts.bronze)}<span class="font-bold text-orange-300">B</span>`;
 }
 
 function trophyVisible(title, trophy) {

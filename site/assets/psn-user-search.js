@@ -28,9 +28,9 @@ function titleTrophyText(title) {
 
 function trophyLetter(type) {
   const classes = {
-    platinum: "text-sky-300",
+    platinum: "text-sky-400",
     gold: "text-amber-300",
-    silver: "text-slate-200",
+    silver: "text-slate-300",
     bronze: "text-orange-300",
   };
   return `<span class="font-bold ${classes[type] || "text-slate-200"}">${type[0].toUpperCase()}</span>`;
