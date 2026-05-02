@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/regions.php';
+require_once __DIR__ . '/../includes/trophy_counts.php';
 
 if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/game.php") {
   $query = $_SERVER["QUERY_STRING"] ?? "";
@@ -18,6 +19,8 @@ $stmt->execute();
 $game = $stmt->get_result()->fetch_assoc();
 if (!$game) { http_response_code(404); exit("Not found"); }
 $regionBadges = region_badges_for_npwrs($db, [$npwr]);
+$trophyCounts = trophy_counts_for_npwrs($db, [$npwr]);
+$gameCounts = $trophyCounts[$npwr] ?? ["platinum" => 0, "gold" => 0, "silver" => 0, "bronze" => 0, "total" => 0];
 
 render_header($game["title_name"]);
 ?>
@@ -36,6 +39,8 @@ render_header($game["title_name"]);
       <div class="mt-1 flex flex-wrap items-center gap-2 text-[15px] app-muted">
         <span><?= htmlspecialchars($game["title_platform"]) ?></span>
         <?php render_region_badges($regionBadges[$npwr] ?? []); ?>
+        <span><?= number_format((int)$gameCounts["total"]) ?> trophies</span>
+        <span class="font-semibold text-cyan-100"><?= htmlspecialchars(trophy_count_text($gameCounts)) ?></span>
       </div>
 
       <?php if (!empty($game["igdb_name"])): ?>

@@ -37,6 +37,10 @@ function format(value) {
   return new Intl.NumberFormat().format(value || 0);
 }
 
+function countText(counts = {}) {
+  return `${format(counts.platinum)}P ${format(counts.gold)}G ${format(counts.silver)}S ${format(counts.bronze)}B`;
+}
+
 function levelFromPoints(total) {
   let level = 1;
   let remaining = Math.max(0, Number(total) || 0);
@@ -149,7 +153,7 @@ function renderPlanner() {
           <div class="h-14 w-14 overflow-hidden rounded-lg bg-slate-800">${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="h-full w-full object-cover" alt="" />` : ""}</div>
           <div class="min-w-0 flex-1">
             <div class="truncate text-base font-semibold text-white">${escapeHtml(title.title)}</div>
-            <div class="mt-1 text-xs app-muted">${escapeHtml(title.npwr)} &middot; ${escapeHtml(title.platform)} &middot; ${format(planned.length)}/${format(title.trophies.length)} planned</div>
+            <div class="mt-1 text-xs app-muted">${escapeHtml(title.npwr)} &middot; ${escapeHtml(title.platform)} &middot; ${format(planned.length)}/${format(title.trophies.length)} planned &middot; ${format(title.counts.total)} trophies &middot; ${countText(title.counts)}</div>
           </div>
           <button class="rounded-lg border border-rose-300/20 bg-rose-400/10 px-2 py-1 text-xs font-semibold text-rose-100" data-remove-title="${escapeHtml(title.npwr)}" type="button">Remove</button>
         </div>
@@ -183,7 +187,7 @@ async function searchCatalog(query) {
       <div class="h-11 w-11 overflow-hidden rounded-md bg-slate-800">${item.iconUrl ? `<img src="${escapeHtml(item.iconUrl)}" class="h-full w-full object-cover" alt="" />` : ""}</div>
       <div class="min-w-0 flex-1">
         <div class="truncate text-sm font-semibold text-white">${escapeHtml(item.title)}</div>
-        <div class="text-xs app-muted">${escapeHtml(item.npwr)} &middot; ${escapeHtml(item.platform)} &middot; ${format(item.counts.total)} trophies</div>
+        <div class="text-xs app-muted">${escapeHtml(item.npwr)} &middot; ${escapeHtml(item.platform)} &middot; ${format(item.counts.total)} trophies &middot; ${countText(item.counts)}</div>
       </div>
       <button
         class="rounded-lg px-2 py-1 text-xs font-bold ${state.titles.has(item.npwr) ? "cursor-not-allowed bg-slate-700 text-slate-400" : "bg-cyan-300 text-slate-950"}"

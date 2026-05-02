@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/regions.php';
+require_once __DIR__ . '/../includes/trophy_counts.php';
 
 if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/index.php") {
   header("Location: /", true, 301);
@@ -71,7 +72,11 @@ $dlcRes = $db->query("
     g.title_platform,
     g.icon_url AS game_icon_url,
     g.first_seen_utc,
-    COUNT(t.trophy_id) AS trophy_count
+    COUNT(t.trophy_id) AS trophy_count,
+    SUM(t.trophy_type='platinum') AS platinum,
+    SUM(t.trophy_type='gold') AS gold,
+    SUM(t.trophy_type='silver') AS silver,
+    SUM(t.trophy_type='bronze') AS bronze
   FROM trophy_groups tg
   INNER JOIN games g ON g.npwr = tg.npwr
   LEFT JOIN trophies t ON t.npwr = tg.npwr AND t.group_id = tg.group_id
@@ -109,10 +114,6 @@ foreach ($recent as $row) {
     $heroIcon = $row["icon_url"];
     break;
   }
-}
-
-function trophy_stat($row, string $key): int {
-  return (int)($row[$key] ?? 0);
 }
 
 render_header("Trophy Project");
@@ -209,10 +210,7 @@ render_header("Trophy Project");
               <span><?= number_format((int)$row["trophy_count"]) ?> trophies</span>
             </div>
             <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
-              <span>P <?= number_format(trophy_stat($row, "platinum")) ?></span>
-              <span>G <?= number_format(trophy_stat($row, "gold")) ?></span>
-              <span>S <?= number_format(trophy_stat($row, "silver")) ?></span>
-              <span>B <?= number_format(trophy_stat($row, "bronze")) ?></span>
+              <span><?= htmlspecialchars(trophy_count_text(trophy_count_from_row($row))) ?></span>
             </div>
           </div>
         </a>
@@ -242,6 +240,9 @@ render_header("Trophy Project");
               <?php render_region_badges($dlcBadges[$row["npwr"]] ?? []); ?>
               <span><?= htmlspecialchars(primary_platform((string)$row["title_platform"]) ?: $row["title_platform"]) ?></span>
               <span><?= number_format((int)($row["trophy_count"] ?: $row["defined_total"])) ?> trophies</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
+              <span><?= htmlspecialchars(trophy_count_text(trophy_count_from_row($row))) ?></span>
             </div>
           </div>
         </a>

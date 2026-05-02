@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/search.php';
 require_once __DIR__ . '/../includes/regions.php';
+require_once __DIR__ . '/../includes/trophy_counts.php';
 
 if (parse_url($_SERVER["REQUEST_URI"] ?? "", PHP_URL_PATH) === "/pages/search.php") {
   $query = $_SERVER["QUERY_STRING"] ?? "";
@@ -14,6 +15,7 @@ $q = trim($_GET["q"] ?? "");
 $db = db_connect();
 $results = [];
 $regionBadges = [];
+$trophyCounts = [];
 
 render_header("Search");
 ?>
@@ -30,13 +32,27 @@ render_header("Search");
     $normalizedLike = "%" . normalize_search_term($q) . "%";
     $normalizedTitle = normalized_title_sql("title_name");
     $normalizedNpwr = normalized_title_sql("npwr");
-    $stmt = $db->prepare("SELECT npwr, title_name, title_platform, icon_url
-                          FROM games
-                          WHERE title_name LIKE ?
-                            OR npwr LIKE ?
-                            OR $normalizedTitle LIKE ?
-                            OR $normalizedNpwr LIKE ?
-                          ORDER BY title_name LIMIT 100");
+    $stmt = $db->prepare("
+      SELECT
+        g.npwr,
+        g.title_name,
+        g.title_platform,
+        g.icon_url,
+        COUNT(t.trophy_id) AS trophy_count,
+        SUM(t.trophy_type='platinum') AS platinum,
+        SUM(t.trophy_type='gold') AS gold,
+        SUM(t.trophy_type='silver') AS silver,
+        SUM(t.trophy_type='bronze') AS bronze
+      FROM games g
+      LEFT JOIN trophies t ON t.npwr = g.npwr
+      WHERE g.title_name LIKE ?
+        OR g.npwr LIKE ?
+        OR " . normalized_title_sql("g.title_name") . " LIKE ?
+        OR " . normalized_title_sql("g.npwr") . " LIKE ?
+      GROUP BY g.npwr, g.title_name, g.title_platform, g.icon_url
+      ORDER BY g.title_name
+      LIMIT 100
+    ");
     $stmt->bind_param("ssss", $like, $like, $normalizedLike, $normalizedLike);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -44,6 +60,9 @@ render_header("Search");
       $results[] = $row;
     }
     $regionBadges = region_badges_for_npwrs($db, array_column($results, "npwr"));
+    foreach ($results as $row) {
+      $trophyCounts[$row["npwr"]] = trophy_count_from_row($row);
+    }
   ?>
   <div class="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wide app-faint">
     Results for "<?= htmlspecialchars($q) ?>"
@@ -62,8 +81,10 @@ render_header("Search");
         <div class="mt-1 text-xs app-muted">
           <?= htmlspecialchars($row["npwr"]) ?> &middot; <?= htmlspecialchars($row["title_platform"]) ?>
         </div>
-        <div class="mt-2 flex flex-wrap gap-1.5">
+        <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs app-muted">
           <?php render_region_badges($regionBadges[$row["npwr"]] ?? []); ?>
+          <span><?= number_format((int)($trophyCounts[$row["npwr"]]["total"] ?? 0)) ?> trophies</span>
+          <span class="font-semibold text-cyan-100"><?= htmlspecialchars(trophy_count_text($trophyCounts[$row["npwr"]] ?? [])) ?></span>
         </div>
       </div>
     </a>
