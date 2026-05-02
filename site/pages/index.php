@@ -158,11 +158,6 @@ render_header("Trophy Project");
         <div class="mt-2 text-2xl font-semibold text-white">Users</div>
         <div class="mt-1 text-xs app-muted">Search online IDs</div>
       </a>
-      <a href="/search" class="app-cell p-4 transition hover:-translate-y-0.5">
-        <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Library</div>
-        <div class="mt-2 text-2xl font-semibold text-white">Browse</div>
-        <div class="mt-1 text-xs app-muted">Find NPWR lists</div>
-      </a>
     </div>
   </div>
 </section>
