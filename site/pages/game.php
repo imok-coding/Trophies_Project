@@ -179,7 +179,6 @@ function trophy_breakdown_html(array $counts): string {
             <?php if (!empty($row["trophy_detail"])): ?>
               <div class="mt-1 text-sm app-muted"><?= htmlspecialchars($row["trophy_detail"]) ?></div>
             <?php endif; ?>
-            <div class="mt-1 text-xs app-faint">#<?= (int)$row["trophy_id"] ?></div>
           </div>
           <div class="flex items-center gap-3 sm:justify-end">
             <?= local_trophy_icon((string)$row["trophy_type"]) ?>

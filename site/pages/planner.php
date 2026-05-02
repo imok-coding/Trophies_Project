@@ -98,5 +98,5 @@ render_header('Trophy Planner');
   </aside>
 </section>
 
-<script src="/assets/planner.js?v=20260430-2"></script>
+<script src="/assets/planner.js?v=20260502-no-trophy-ids"></script>
 <?php render_footer(); ?>

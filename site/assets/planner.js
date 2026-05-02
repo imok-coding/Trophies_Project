@@ -153,7 +153,7 @@ function renderPlanner() {
           <span class="h-9 w-9 overflow-hidden rounded-md bg-slate-800">${trophy.iconUrl ? `<img src="${escapeHtml(trophy.iconUrl)}" class="h-full w-full object-cover" alt="" />` : ""}</span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-semibold text-white">${escapeHtml(trophy.name || "Hidden Trophy")}</span>
-            <span class="text-xs app-muted">#${trophy.id} &middot; ${escapeHtml(trophy.type)}${trophy.hidden ? " &middot; Hidden" : ""}</span>
+            <span class="text-xs app-muted">${escapeHtml(trophy.type)}${trophy.hidden ? " &middot; Hidden" : ""}</span>
           </span>
         </label>
       `;
