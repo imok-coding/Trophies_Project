@@ -28,7 +28,7 @@ function titleTrophyText(title) {
 
 function trophyLetter(type) {
   const classes = {
-    platinum: "text-sky-200",
+    platinum: "text-sky-300",
     gold: "text-amber-300",
     silver: "text-slate-200",
     bronze: "text-orange-300",

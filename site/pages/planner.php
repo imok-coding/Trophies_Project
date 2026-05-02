@@ -52,7 +52,7 @@ render_header('Trophy Planner');
       <div class="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-lg font-semibold text-white">Planned Games</h2>
-          <p id="planner-breakdown" class="mt-1 text-sm app-muted">0<span class="font-bold text-sky-200">P</span> &middot; 0<span class="font-bold text-amber-300">G</span> &middot; 0<span class="font-bold text-slate-200">S</span> &middot; 0<span class="font-bold text-orange-300">B</span></p>
+          <p id="planner-breakdown" class="mt-1 text-sm app-muted">0<span class="font-bold text-sky-300">P</span> &middot; 0<span class="font-bold text-amber-300">G</span> &middot; 0<span class="font-bold text-slate-200">S</span> &middot; 0<span class="font-bold text-orange-300">B</span></p>
         </div>
         <select id="planner-filter" class="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/40">
           <option value="all">All trophies</option>
