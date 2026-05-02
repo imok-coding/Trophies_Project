@@ -274,6 +274,12 @@ function psn_trophy_endpoint_get(string $url, string $accessToken): array {
   return $data;
 }
 
+function psn_trophy_group_name(string $groupId, array $group): string {
+  if ($groupId === 'default') return 'Base Game';
+  $name = (string)($group['trophyGroupName'] ?? $group['trophyGroupDetail'] ?? '');
+  return $name !== '' ? $name : 'DLC ' . $groupId;
+}
+
 function psn_user_title_trophies(string $accountId, string $npwr, string $service = 'trophy2'): array {
   if (!preg_match('/^(me|\d{6,25})$/', $accountId)) {
     throw new RuntimeException('Invalid PSN account ID.');
@@ -287,8 +293,20 @@ function psn_user_title_trophies(string $accountId, string $npwr, string $servic
 
   $accessToken = psn_access_token();
   $query = http_build_query(['npServiceName' => $service]);
+  $titleGroupsUrl = 'https://m.np.playstation.com/api/trophy/v1/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups?' . $query;
+  $userGroupsUrl = 'https://m.np.playstation.com/api/trophy/v1/users/' . rawurlencode($accountId) . '/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups?' . $query;
   $titleUrl = 'https://m.np.playstation.com/api/trophy/v1/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups/all/trophies?' . $query;
   $userUrl = 'https://m.np.playstation.com/api/trophy/v1/users/' . rawurlencode($accountId) . '/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups/all/trophies?' . $query;
+
+  $titleGroupsData = [];
+  $userGroupsData = [];
+  try {
+    $titleGroupsData = psn_trophy_endpoint_get($titleGroupsUrl, $accessToken);
+    $userGroupsData = psn_trophy_endpoint_get($userGroupsUrl, $accessToken);
+  } catch (RuntimeException $exception) {
+    $titleGroupsData = [];
+    $userGroupsData = [];
+  }
 
   $titleData = psn_trophy_endpoint_get($titleUrl, $accessToken);
   $userData = psn_trophy_endpoint_get($userUrl, $accessToken);
@@ -330,19 +348,84 @@ function psn_user_title_trophies(string $accountId, string $npwr, string $servic
 
   $calculatedDefined = ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0];
   $calculatedEarned = ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0];
+  $calculatedGroups = [];
   foreach ($trophies as $trophy) {
     $type = (string)$trophy['type'];
+    $groupId = (string)$trophy['groupId'];
+    if (!isset($calculatedGroups[$groupId])) {
+      $calculatedGroups[$groupId] = [
+        'defined' => ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0],
+        'earned' => ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0]
+      ];
+    }
+
     if (isset($calculatedDefined[$type])) {
       $calculatedDefined[$type]++;
+      $calculatedGroups[$groupId]['defined'][$type]++;
     }
     $calculatedDefined['total']++;
+    $calculatedGroups[$groupId]['defined']['total']++;
     if ((bool)$trophy['earned']) {
       if (isset($calculatedEarned[$type])) {
         $calculatedEarned[$type]++;
+        $calculatedGroups[$groupId]['earned'][$type]++;
       }
       $calculatedEarned['total']++;
+      $calculatedGroups[$groupId]['earned']['total']++;
     }
   }
+
+  $userGroupsById = [];
+  foreach (($userGroupsData['trophyGroups'] ?? []) as $group) {
+    $groupId = (string)($group['trophyGroupId'] ?? '');
+    if ($groupId !== '') $userGroupsById[$groupId] = $group;
+  }
+
+  $groupsById = [];
+  foreach (($titleGroupsData['trophyGroups'] ?? []) as $group) {
+    $groupId = (string)($group['trophyGroupId'] ?? '');
+    if ($groupId === '') continue;
+    $userGroup = $userGroupsById[$groupId] ?? [];
+    $groupsById[$groupId] = [
+      'id' => $groupId,
+      'name' => psn_trophy_group_name($groupId, $group),
+      'detail' => (string)($group['trophyGroupDetail'] ?? ''),
+      'iconUrl' => (string)($group['trophyGroupIconUrl'] ?? ''),
+      'defined' => $calculatedGroups[$groupId]['defined'] ?? [
+        'platinum' => (int)($group['definedTrophies']['platinum'] ?? 0),
+        'gold' => (int)($group['definedTrophies']['gold'] ?? 0),
+        'silver' => (int)($group['definedTrophies']['silver'] ?? 0),
+        'bronze' => (int)($group['definedTrophies']['bronze'] ?? 0),
+        'total' => psn_trophy_count_total($group['definedTrophies'] ?? [])
+      ],
+      'earned' => $calculatedGroups[$groupId]['earned'] ?? [
+        'platinum' => (int)($userGroup['earnedTrophies']['platinum'] ?? 0),
+        'gold' => (int)($userGroup['earnedTrophies']['gold'] ?? 0),
+        'silver' => (int)($userGroup['earnedTrophies']['silver'] ?? 0),
+        'bronze' => (int)($userGroup['earnedTrophies']['bronze'] ?? 0),
+        'total' => psn_trophy_count_total($userGroup['earnedTrophies'] ?? [])
+      ]
+    ];
+  }
+
+  foreach ($calculatedGroups as $groupId => $counts) {
+    if (isset($groupsById[$groupId])) continue;
+    $groupsById[$groupId] = [
+      'id' => $groupId,
+      'name' => $groupId === 'default' ? 'Base Game' : 'DLC ' . $groupId,
+      'detail' => '',
+      'iconUrl' => '',
+      'defined' => $counts['defined'],
+      'earned' => $counts['earned']
+    ];
+  }
+
+  $groups = array_values($groupsById);
+  usort($groups, function ($left, $right) {
+    if ($left['id'] === 'default') return -1;
+    if ($right['id'] === 'default') return 1;
+    return strnatcmp((string)$left['id'], (string)$right['id']);
+  });
 
   if ($definedTotal === 0) {
     $defined = $calculatedDefined;
@@ -371,6 +454,7 @@ function psn_user_title_trophies(string $accountId, string $npwr, string $servic
       'bronze' => (int)($earned['bronze'] ?? $calculatedEarned['bronze']),
       'total' => $earnedTotal
     ],
+    'groups' => $groups,
     'trophies' => $trophies
   ];
 }

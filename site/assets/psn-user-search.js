@@ -143,6 +143,54 @@ function trophyRow(trophy) {
   `;
 }
 
+function trophyGroupSections(detail, title) {
+  const trophiesByGroup = new Map();
+  for (const trophy of detail.trophies || []) {
+    const groupId = trophy.groupId || "default";
+    if (!trophiesByGroup.has(groupId)) trophiesByGroup.set(groupId, []);
+    trophiesByGroup.get(groupId).push(trophy);
+  }
+
+  const groups = detail.groups?.length
+    ? detail.groups
+    : Array.from(trophiesByGroup.keys()).map((groupId) => ({
+        id: groupId,
+        name: groupId === "default" ? "Base Game" : `DLC ${groupId}`,
+        iconUrl: "",
+        defined: {},
+        earned: {},
+      }));
+
+  return groups
+    .filter((group) => trophiesByGroup.has(group.id))
+    .map((group) => {
+      const trophies = trophiesByGroup.get(group.id) || [];
+      const earnedCount = trophies.filter((trophy) => trophy.earned).length;
+      const groupIcon = group.iconUrl || (group.id === "default" ? title.iconUrl : "");
+      const groupLabel = group.id === "default" ? "Base Game" : "DLC";
+
+      return `
+        <section class="overflow-hidden rounded-lg border border-white/10">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="grid h-14 w-14 flex-shrink-0 place-items-center overflow-hidden rounded bg-slate-950 p-1">
+                ${groupIcon ? `<img src="${escapeHtml(groupIcon)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
+              </div>
+              <div class="min-w-0">
+                <div class="text-[10px] font-bold uppercase tracking-wide ${group.id === "default" ? "text-cyan-100" : "text-violet-100"}">${groupLabel}</div>
+                <div class="truncate font-semibold text-white">${escapeHtml(group.name || (group.id === "default" ? "Base Game" : `DLC ${group.id}`))}</div>
+                <div class="text-sm app-muted">${format(earnedCount)} of ${format(trophies.length)} trophies</div>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(group.earned || {})}</div>
+          </div>
+          <div>${trophies.map(trophyRow).join("")}</div>
+        </section>
+      `;
+    })
+    .join("");
+}
+
 function renderTitleDetail(user, title, detail) {
   const baseTrophies = detail.trophies.filter((trophy) => trophy.groupId === "default");
   const dlcTrophies = detail.trophies.filter((trophy) => trophy.groupId !== "default");
@@ -191,8 +239,8 @@ function renderTitleDetail(user, title, detail) {
                 </div>
                 <div class="flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(detail.earned)}</div>
               </div>
-              <div>${detail.trophies.map(trophyRow).join("")}</div>
-              ${dlcTrophies.length ? `<div class="border-t border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-bold uppercase tracking-wide app-faint">${format(dlcTrophies.length)} DLC trophies included</div>` : ""}
+              <div class="space-y-4 p-3">${trophyGroupSections(detail, title)}</div>
+              ${dlcTrophies.length ? `<div class="border-t border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-bold uppercase tracking-wide app-faint">${format(dlcTrophies.length)} DLC trophies separated below Base Game</div>` : ""}
             </div>
           </div>
           ${titleCard(title, detail)}
