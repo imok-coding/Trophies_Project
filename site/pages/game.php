@@ -77,46 +77,107 @@ function trophy_group_label(array $group): string {
   if ($groupId === "default" || strcasecmp($groupName, "Default Trophy Set") === 0) {
     return "Base Game";
   }
-  return $groupName !== "" ? $groupName : "Trophy Group";
+  return $groupName !== "" ? $groupName : "DLC " . (string)$group["group_id"];
+}
+
+function trophy_group_kind(array $group): string {
+  $groupId = strtolower((string)$group["group_id"]);
+  $groupName = trim((string)($group["group_name"] ?? ""));
+  return ($groupId === "default" || strcasecmp($groupName, "Default Trophy Set") === 0 || strcasecmp($groupName, "Base Game") === 0)
+    ? "Base Game"
+    : "DLC";
+}
+
+function local_trophy_icon(string $type): string {
+  $icons = [
+    "platinum" => ["470bd2.png", "P"],
+    "gold" => ["7186c5.png", "G"],
+    "silver" => ["f179ed.png", "S"],
+    "bronze" => ["e61e35.png", "B"],
+  ];
+  $key = strtolower($type);
+  $icon = $icons[$key] ?? $icons["bronze"];
+  return '<img src="/assets/trophy/' . htmlspecialchars($icon[0]) . '" alt="' . htmlspecialchars($icon[1]) . '" class="inline-block h-6 w-6 align-[-5px]" loading="lazy" />';
+}
+
+function trophy_breakdown_html(array $counts): string {
+  return '<span class="inline-flex items-center gap-1 font-semibold text-white">' . number_format((int)($counts["platinum"] ?? 0)) . local_trophy_icon("platinum") . '</span>'
+    . '<span class="inline-flex items-center gap-1 font-semibold text-white">' . number_format((int)($counts["gold"] ?? 0)) . local_trophy_icon("gold") . '</span>'
+    . '<span class="inline-flex items-center gap-1 font-semibold text-white">' . number_format((int)($counts["silver"] ?? 0)) . local_trophy_icon("silver") . '</span>'
+    . '<span class="inline-flex items-center gap-1 font-semibold text-white">' . number_format((int)($counts["bronze"] ?? 0)) . local_trophy_icon("bronze") . '</span>';
 }
 ?>
 
 <?php while ($g = $gr->fetch_assoc()): ?>
-  <section class="mb-5">
-    <div class="mb-2 flex items-end justify-between px-1">
-      <h2 class="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide app-faint">
-        <?= htmlspecialchars($g["group_id"]) ?> &middot; <?= htmlspecialchars(trophy_group_label($g)) ?>
-      </h2>
-      <?php if ($g["defined_total"] !== null): ?>
-        <span class="text-xs app-faint"><?= (int)$g["defined_total"] ?> trophies</span>
-      <?php endif; ?>
-    </div>
+  <?php
+    $t = $db->prepare("
+      SELECT trophy_id, trophy_name, trophy_detail, trophy_type, hidden, icon_url
+      FROM trophies
+      WHERE npwr=? AND group_id=?
+      ORDER BY trophy_id
+    ");
+    $t->bind_param("ss", $npwr, $g["group_id"]);
+    $t->execute();
+    $tr = $t->get_result();
+    $rows = [];
+    $groupCounts = ["platinum" => 0, "gold" => 0, "silver" => 0, "bronze" => 0, "total" => 0];
+    while ($row = $tr->fetch_assoc()) {
+      $rows[] = $row;
+      $type = strtolower((string)$row["trophy_type"]);
+      if (isset($groupCounts[$type])) $groupCounts[$type]++;
+      $groupCounts["total"]++;
+    }
+    $groupIcon = !empty($g["icon_url"]) ? $g["icon_url"] : $game["icon_url"];
+    $groupKind = trophy_group_kind($g);
+  ?>
 
-    <?php
-      $t = $db->prepare("SELECT trophy_id, trophy_name, trophy_type, hidden, icon_url
-                        FROM trophies WHERE npwr=? AND group_id=? ORDER BY trophy_id");
-      $t->bind_param("ss", $npwr, $g["group_id"]);
-      $t->execute();
-      $tr = $t->get_result();
-    ?>
-
-    <div class="space-y-2">
-    <?php while ($row = $tr->fetch_assoc()): ?>
-      <div class="app-cell flex items-center gap-3 p-3">
-        <div class="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
-          <?php if (!empty($row["icon_url"])): ?>
-            <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="h-full w-full object-cover" alt="" loading="lazy" />
+  <section class="mb-5 overflow-hidden rounded-lg border border-white/10">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="grid h-14 w-14 flex-shrink-0 place-items-center overflow-hidden rounded bg-slate-950 p-1">
+          <?php if (!empty($groupIcon)): ?>
+            <img src="<?= htmlspecialchars($groupIcon) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />
           <?php endif; ?>
         </div>
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["trophy_name"]) ?></div>
-          <div class="mt-0.5 text-xs app-muted">
-            #<?= (int)$row["trophy_id"] ?> &middot; <?= htmlspecialchars($row["trophy_type"]) ?>
-            <?= ((int)$row["hidden"] === 1) ? " &middot; Hidden" : "" ?>
+        <div class="min-w-0">
+          <div class="text-[10px] font-bold uppercase tracking-wide <?= $groupKind === "Base Game" ? "text-cyan-100" : "text-violet-100" ?>">
+            <?= htmlspecialchars($groupKind) ?>
+          </div>
+          <h2 class="truncate font-semibold text-white"><?= htmlspecialchars(trophy_group_label($g)) ?></h2>
+          <div class="mt-0.5 flex flex-wrap items-center gap-2 text-sm app-muted">
+            <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]"><?= htmlspecialchars($g["group_id"]) ?></span>
+            <span><?= number_format((int)$groupCounts["total"]) ?> trophies</span>
           </div>
         </div>
       </div>
-    <?php endwhile; ?>
+      <div class="flex flex-wrap gap-3 text-sm app-muted"><?= trophy_breakdown_html($groupCounts) ?></div>
+    </div>
+
+    <div>
+      <?php foreach ($rows as $row): ?>
+        <article class="grid gap-3 border-b border-white/10 p-3 transition hover:bg-white/[0.04] sm:grid-cols-[4rem_1fr_auto] sm:items-center">
+          <div class="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-slate-950 p-1 ring-1 ring-white/10">
+            <?php if (!empty($row["icon_url"])): ?>
+              <img src="<?= htmlspecialchars($row["icon_url"]) ?>" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />
+            <?php endif; ?>
+          </div>
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <span class="truncate text-[15px] font-semibold text-white"><?= htmlspecialchars($row["trophy_name"]) ?></span>
+              <?php if ((int)$row["hidden"] === 1): ?>
+                <span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold uppercase app-muted">Secret</span>
+              <?php endif; ?>
+            </div>
+            <?php if (!empty($row["trophy_detail"])): ?>
+              <div class="mt-1 text-sm app-muted"><?= htmlspecialchars($row["trophy_detail"]) ?></div>
+            <?php endif; ?>
+            <div class="mt-1 text-xs app-faint">#<?= (int)$row["trophy_id"] ?></div>
+          </div>
+          <div class="flex items-center gap-3 sm:justify-end">
+            <?= local_trophy_icon((string)$row["trophy_type"]) ?>
+          </div>
+        </article>
+      <?php endforeach; ?>
     </div>
   </section>
 <?php endwhile; ?>
