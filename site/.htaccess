@@ -1,6 +1,7 @@
 RewriteEngine On
 
 RewriteRule ^search/?$ pages/search.php [L,QSA]
+RewriteRule ^games/?$ pages/games.php [L,QSA]
 RewriteRule ^game/?$ pages/game.php [L,QSA]
 RewriteRule ^planner/?$ pages/planner.php [L,QSA]
 RewriteRule ^psn-user/?$ pages/psn-user.php [L,QSA]
@@ -10,6 +11,9 @@ RewriteRule ^pages/index\.php$ / [R=301,L]
 
 RewriteCond %{THE_REQUEST} \s/+pages/search\.php[?\s] [NC]
 RewriteRule ^pages/search\.php$ /search [R=301,L,QSA]
+
+RewriteCond %{THE_REQUEST} \s/+pages/games\.php[?\s] [NC]
+RewriteRule ^pages/games\.php$ /games [R=301,L,QSA]
 
 RewriteCond %{THE_REQUEST} \s/+pages/game\.php[?\s] [NC]
 RewriteRule ^pages/game\.php$ /game [R=301,L,QSA]

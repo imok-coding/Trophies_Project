@@ -147,7 +147,12 @@ render_header("Trophy Project");
       </form>
     </div>
 
-    <div class="grid grid-cols-2 gap-2">
+    <div class="grid gap-2 sm:grid-cols-3 lg:grid-cols-2">
+      <a href="/games" class="app-cell p-4 transition hover:-translate-y-0.5">
+        <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Library</div>
+        <div class="mt-2 text-2xl font-semibold text-white">All Games</div>
+        <div class="mt-1 text-xs app-muted">Browse every list</div>
+      </a>
       <a href="/planner" class="app-cell p-4 transition hover:-translate-y-0.5">
         <div class="text-xs font-semibold uppercase tracking-wide text-cyan-200">Planner</div>
         <div class="mt-2 text-2xl font-semibold text-white">Roadmap</div>
