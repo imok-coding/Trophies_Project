@@ -201,9 +201,7 @@ function trophyGroupSections(detail, title) {
 }
 
 function renderTitleDetail(user, title, detail) {
-  const baseTrophies = detail.trophies.filter((trophy) => trophy.groupId === "default");
   const dlcTrophies = detail.trophies.filter((trophy) => trophy.groupId !== "default");
-  const earnedBase = baseTrophies.filter((trophy) => trophy.earned).length;
 
   titlesPanel.innerHTML = `
     <section class="space-y-4">
@@ -235,18 +233,6 @@ function renderTitleDetail(user, title, detail) {
             <div class="overflow-hidden rounded-lg border border-white/10">
               <div class="border-b border-white/10 bg-cyan-300/10 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-cyan-100">
                 ${escapeHtml(title.title || title.npwr)} Trophies
-              </div>
-              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
-                <div class="flex items-center gap-3">
-                  <div class="grid h-14 w-14 place-items-center overflow-hidden rounded bg-slate-950 p-1">
-                    ${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
-                  </div>
-                  <div>
-                    <div class="font-semibold text-white">Base Game</div>
-                    <div class="text-sm app-muted">${format(earnedBase)} of ${format(baseTrophies.length)} trophies</div>
-                  </div>
-                </div>
-                <div class="flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(detail.earned)}</div>
               </div>
               <div class="space-y-4 p-3">${trophyGroupSections(detail, title)}</div>
               ${dlcTrophies.length ? `<div class="border-t border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-bold uppercase tracking-wide app-faint">${format(dlcTrophies.length)} DLC trophies separated below Base Game</div>` : ""}
@@ -381,7 +367,6 @@ function renderTitles(user, titles) {
                   <span class="inline-flex items-center gap-1 text-sm font-semibold">${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}${trophyIcon("silver")}</span>
                   <span class="inline-flex items-center gap-1 text-sm font-semibold">${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}${trophyIcon("bronze")}</span>
                 </div>
-                <button class="mt-3 rounded-lg border border-cyan-200/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold text-cyan-100 transition hover:bg-cyan-300/20" type="button" data-title-detail-button="${escapeHtml(title.npwr)}">View trophies</button>
               </div>
             </article>
           `).join("")}
