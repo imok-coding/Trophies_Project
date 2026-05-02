@@ -26,14 +26,15 @@ function titleTrophyText(title) {
   return `${format(earned)}/${format(total)} trophies`;
 }
 
-function trophyLetter(type) {
-  const classes = {
-    platinum: "text-sky-400",
-    gold: "text-amber-300",
-    silver: "text-slate-300",
-    bronze: "text-orange-300",
+function trophyIcon(type) {
+  const icons = {
+    platinum: ["470bd2.png", "P"],
+    gold: ["7186c5.png", "G"],
+    silver: ["f179ed.png", "S"],
+    bronze: ["e61e35.png", "B"],
   };
-  return `<span class="font-bold ${classes[type] || "text-slate-200"}">${type[0].toUpperCase()}</span>`;
+  const [file, alt] = icons[type] || icons.bronze;
+  return `<img src="/assets/trophy/${file}" alt="${alt}" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" />`;
 }
 
 function renderTitles(user, titles) {
@@ -63,10 +64,10 @@ function renderTitles(user, titles) {
                 <span>${format(title.progress)}%</span>
               </div>
               <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
-                <span>${trophyLetter("platinum")} ${format(title.earned?.platinum || 0)}/${format(title.defined?.platinum || 0)}</span>
-                <span>${trophyLetter("gold")} ${format(title.earned?.gold || 0)}/${format(title.defined?.gold || 0)}</span>
-                <span>${trophyLetter("silver")} ${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}</span>
-                <span>${trophyLetter("bronze")} ${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}</span>
+                <span class="inline-flex items-center gap-1">${format(title.earned?.platinum || 0)}/${format(title.defined?.platinum || 0)}${trophyIcon("platinum")}</span>
+                <span class="inline-flex items-center gap-1">${format(title.earned?.gold || 0)}/${format(title.defined?.gold || 0)}${trophyIcon("gold")}</span>
+                <span class="inline-flex items-center gap-1">${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}${trophyIcon("silver")}</span>
+                <span class="inline-flex items-center gap-1">${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}${trophyIcon("bronze")}</span>
               </div>
             </div>
           </article>

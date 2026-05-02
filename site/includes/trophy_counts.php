@@ -45,11 +45,22 @@ function trophy_count_text(array $counts): string {
     . number_format((int)($counts["bronze"] ?? 0)) . "B";
 }
 
+function trophy_icon_html(string $type): string {
+  $icons = [
+    "platinum" => ["file" => "470bd2.png", "alt" => "P"],
+    "gold" => ["file" => "7186c5.png", "alt" => "G"],
+    "silver" => ["file" => "f179ed.png", "alt" => "S"],
+    "bronze" => ["file" => "e61e35.png", "alt" => "B"]
+  ];
+  $icon = $icons[$type] ?? $icons["bronze"];
+  return '<img src="/assets/trophy/' . $icon["file"] . '" alt="' . $icon["alt"] . '" class="inline-block h-3.5 w-3.5 align-[-2px]" loading="lazy" />';
+}
+
 function trophy_count_html(array $counts): string {
-  return number_format((int)($counts["platinum"] ?? 0)) . '<span class="font-bold text-sky-400">P</span> '
-    . number_format((int)($counts["gold"] ?? 0)) . '<span class="font-bold text-amber-300">G</span> '
-    . number_format((int)($counts["silver"] ?? 0)) . '<span class="font-bold text-slate-300">S</span> '
-    . number_format((int)($counts["bronze"] ?? 0)) . '<span class="font-bold text-orange-300">B</span>';
+  return '<span class="inline-flex items-center gap-1">' . number_format((int)($counts["platinum"] ?? 0)) . trophy_icon_html("platinum") . '</span> '
+    . '<span class="inline-flex items-center gap-1">' . number_format((int)($counts["gold"] ?? 0)) . trophy_icon_html("gold") . '</span> '
+    . '<span class="inline-flex items-center gap-1">' . number_format((int)($counts["silver"] ?? 0)) . trophy_icon_html("silver") . '</span> '
+    . '<span class="inline-flex items-center gap-1">' . number_format((int)($counts["bronze"] ?? 0)) . trophy_icon_html("bronze") . '</span>';
 }
 
 function trophy_count_from_row(array $row): array {
