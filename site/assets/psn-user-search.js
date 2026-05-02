@@ -301,7 +301,7 @@ function renderTitles(user, titles) {
         </div>
         <div class="divide-y divide-white/10">
           ${titles.map((title) => `
-            <article class="flex cursor-pointer gap-3 p-3 transition hover:bg-white/[0.04]" data-title-detail="${escapeHtml(title.npwr)}">
+            <article class="flex cursor-pointer gap-3 p-3 transition hover:bg-white/[0.04]" data-title-detail="${escapeHtml(title.npwr)}" role="button" tabindex="0" aria-label="View ${escapeHtml(title.title || title.npwr)} trophies">
               <div class="grid h-20 w-20 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
                 ${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
               </div>
@@ -324,6 +324,7 @@ function renderTitles(user, titles) {
                   <span class="inline-flex items-center gap-1 text-sm font-semibold">${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}${trophyIcon("silver")}</span>
                   <span class="inline-flex items-center gap-1 text-sm font-semibold">${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}${trophyIcon("bronze")}</span>
                 </div>
+                <button class="mt-3 rounded-lg border border-cyan-200/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold text-cyan-100 transition hover:bg-cyan-300/20" type="button" data-title-detail-button="${escapeHtml(title.npwr)}">View trophies</button>
               </div>
             </article>
           `).join("")}
@@ -345,10 +346,16 @@ function renderTitles(user, titles) {
   `;
 
   for (const item of titlesPanel.querySelectorAll("[data-title-detail]")) {
-    item.addEventListener("click", () => {
+    const open = () => {
       const title = titles.find((candidate) => candidate.npwr === item.dataset.titleDetail);
       if (!title) return;
       loadTitleDetail(title).catch((error) => renderMessage(titlesPanel, error.message || "Could not load trophy list.", true));
+    };
+    item.addEventListener("click", open);
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      open();
     });
   }
 }
