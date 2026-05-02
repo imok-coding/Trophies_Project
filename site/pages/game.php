@@ -131,8 +131,6 @@ function trophy_breakdown_html(array $counts): string {
     $groupIcon = !empty($g["icon_url"]) ? $g["icon_url"] : $game["icon_url"];
     $groupKind = trophy_group_kind($g);
     if ($groupKind === "DLC") $dlcPackNumber++;
-    $summaryTone = $groupKind === "DLC" ? "bg-[#202123]" : "bg-white/[0.04]";
-    $rowTone = $groupKind === "DLC" ? "bg-[#202123]" : "";
   ?>
 
   <section class="mb-5 overflow-hidden rounded-lg border border-white/10">
@@ -142,7 +140,7 @@ function trophy_breakdown_html(array $counts): string {
       </div>
     <?php endif; ?>
 
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 <?= $summaryTone ?> px-4 py-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
       <div class="flex min-w-0 items-center gap-3">
         <div class="grid h-14 w-14 flex-shrink-0 place-items-center overflow-hidden rounded bg-slate-950 p-1">
           <?php if (!empty($groupIcon)): ?>
@@ -163,7 +161,7 @@ function trophy_breakdown_html(array $counts): string {
       <div class="flex flex-wrap gap-3 text-sm app-muted"><?= trophy_breakdown_html($groupCounts) ?></div>
     </div>
 
-    <div class="<?= $rowTone ?>">
+    <div>
       <?php foreach ($rows as $row): ?>
         <article class="grid gap-3 border-b border-white/10 p-3 transition hover:bg-white/[0.04] sm:grid-cols-[4rem_1fr_auto] sm:items-center">
           <div class="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-slate-950 p-1 ring-1 ring-white/10">

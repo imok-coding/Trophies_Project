@@ -33,5 +33,5 @@ render_header('PSN User Search');
   <div id="psn-user-titles"></div>
 </section>
 
-<script src="/assets/psn-user-search.js?v=20260502-clean-title-rows"></script>
+<script src="/assets/psn-user-search.js?v=20260502-matched-dlc-style"></script>
 <?php render_footer(); ?>
