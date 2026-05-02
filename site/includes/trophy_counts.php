@@ -45,6 +45,13 @@ function trophy_count_text(array $counts): string {
     . number_format((int)($counts["bronze"] ?? 0)) . "B";
 }
 
+function trophy_count_html(array $counts): string {
+  return number_format((int)($counts["platinum"] ?? 0)) . '<span class="font-bold text-sky-200">P</span> '
+    . number_format((int)($counts["gold"] ?? 0)) . '<span class="font-bold text-amber-300">G</span> '
+    . number_format((int)($counts["silver"] ?? 0)) . '<span class="font-bold text-slate-200">S</span> '
+    . number_format((int)($counts["bronze"] ?? 0)) . '<span class="font-bold text-orange-300">B</span>';
+}
+
 function trophy_count_from_row(array $row): array {
   return [
     "platinum" => (int)($row["platinum"] ?? 0),

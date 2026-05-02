@@ -210,7 +210,7 @@ render_header("Trophy Project");
               <span><?= number_format((int)$row["trophy_count"]) ?> trophies</span>
             </div>
             <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
-              <span><?= htmlspecialchars(trophy_count_text(trophy_count_from_row($row))) ?></span>
+              <span><?= trophy_count_html(trophy_count_from_row($row)) ?></span>
             </div>
           </div>
         </a>
@@ -242,7 +242,7 @@ render_header("Trophy Project");
               <span><?= number_format((int)($row["trophy_count"] ?: $row["defined_total"])) ?> trophies</span>
             </div>
             <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
-              <span><?= htmlspecialchars(trophy_count_text(trophy_count_from_row($row))) ?></span>
+              <span><?= trophy_count_html(trophy_count_from_row($row)) ?></span>
             </div>
           </div>
         </a>

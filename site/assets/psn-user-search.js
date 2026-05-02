@@ -26,6 +26,16 @@ function titleTrophyText(title) {
   return `${format(earned)}/${format(total)} trophies`;
 }
 
+function trophyLetter(type) {
+  const classes = {
+    platinum: "text-sky-200",
+    gold: "text-amber-300",
+    silver: "text-slate-200",
+    bronze: "text-orange-300",
+  };
+  return `<span class="font-bold ${classes[type] || "text-slate-200"}">${type[0].toUpperCase()}</span>`;
+}
+
 function renderTitles(user, titles) {
   if (!titles.length) {
     renderMessage(titlesPanel, `${user.onlineId} has no visible trophy titles.`);
@@ -53,10 +63,10 @@ function renderTitles(user, titles) {
                 <span>${format(title.progress)}%</span>
               </div>
               <div class="mt-2 flex flex-wrap gap-2 text-[11px] app-faint">
-                <span>P ${format(title.earned?.platinum || 0)}/${format(title.defined?.platinum || 0)}</span>
-                <span>G ${format(title.earned?.gold || 0)}/${format(title.defined?.gold || 0)}</span>
-                <span>S ${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}</span>
-                <span>B ${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}</span>
+                <span>${trophyLetter("platinum")} ${format(title.earned?.platinum || 0)}/${format(title.defined?.platinum || 0)}</span>
+                <span>${trophyLetter("gold")} ${format(title.earned?.gold || 0)}/${format(title.defined?.gold || 0)}</span>
+                <span>${trophyLetter("silver")} ${format(title.earned?.silver || 0)}/${format(title.defined?.silver || 0)}</span>
+                <span>${trophyLetter("bronze")} ${format(title.earned?.bronze || 0)}/${format(title.defined?.bronze || 0)}</span>
               </div>
             </div>
           </article>

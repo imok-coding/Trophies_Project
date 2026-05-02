@@ -84,7 +84,7 @@ render_header("Search");
         <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs app-muted">
           <?php render_region_badges($regionBadges[$row["npwr"]] ?? []); ?>
           <span><?= number_format((int)($trophyCounts[$row["npwr"]]["total"] ?? 0)) ?> trophies</span>
-          <span class="font-semibold text-cyan-100"><?= htmlspecialchars(trophy_count_text($trophyCounts[$row["npwr"]] ?? [])) ?></span>
+          <span class="font-semibold text-cyan-100"><?= trophy_count_html($trophyCounts[$row["npwr"]] ?? []) ?></span>
         </div>
       </div>
     </a>

@@ -40,7 +40,7 @@ render_header($game["title_name"]);
         <span><?= htmlspecialchars($game["title_platform"]) ?></span>
         <?php render_region_badges($regionBadges[$npwr] ?? []); ?>
         <span><?= number_format((int)$gameCounts["total"]) ?> trophies</span>
-        <span class="font-semibold text-cyan-100"><?= htmlspecialchars(trophy_count_text($gameCounts)) ?></span>
+        <span class="font-semibold text-cyan-100"><?= trophy_count_html($gameCounts) ?></span>
       </div>
 
       <?php if (!empty($game["igdb_name"])): ?>
