@@ -2,6 +2,7 @@ const form = document.getElementById("psn-user-search-form");
 const input = document.getElementById("psn-user-search");
 const results = document.getElementById("psn-user-results");
 const titlesPanel = document.getElementById("psn-user-titles");
+const state = { user: null, titles: [] };
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -77,6 +78,142 @@ function titleTrophyText(title) {
   const earned = title.earned?.total ?? 0;
   const total = title.defined?.total ?? 0;
   return `${format(earned)}/${format(total)} trophies`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function titleBreakdown(counts = {}) {
+  return `
+    ${trophyCount(counts.platinum || 0, "platinum")}
+    ${trophyCount(counts.gold || 0, "gold")}
+    ${trophyCount(counts.silver || 0, "silver")}
+    ${trophyCount(counts.bronze || 0, "bronze")}
+  `;
+}
+
+function titleCard(title, detail) {
+  return `
+    <aside class="app-panel overflow-hidden self-start">
+      <div class="grid h-44 place-items-center overflow-hidden bg-slate-950 p-4">
+        ${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
+      </div>
+      <div class="border-t border-white/10 p-4">
+        <h3 class="text-lg font-semibold text-white">${escapeHtml(title.title || title.npwr)}</h3>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs app-muted">
+          ${platformBadge(title.platform)}
+          <span>${escapeHtml(title.npwr)}</span>
+          <span>${format(detail.progress)}%</span>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(detail.defined)}</div>
+      </div>
+      <div class="divide-y divide-white/10 border-t border-white/10 text-sm">
+        <div class="flex items-center justify-between gap-3 px-4 py-3"><span class="app-muted">Earned trophies</span><span class="font-semibold text-white">${format(detail.earned.total)}/${format(detail.defined.total)}</span></div>
+        <div class="flex items-center justify-between gap-3 px-4 py-3"><span class="app-muted">Service</span><span class="font-semibold text-white">${escapeHtml(detail.service)}</span></div>
+        <div class="flex items-center justify-between gap-3 px-4 py-3"><span class="app-muted">Last updated</span><span class="font-semibold text-white">${formatDateTime(title.lastUpdatedDateTime) || "Unknown"}</span></div>
+      </div>
+    </aside>
+  `;
+}
+
+function trophyRow(trophy) {
+  const earnedDate = formatDateTime(trophy.earnedDateTime);
+  return `
+    <article class="grid gap-3 border-b border-white/10 p-3 transition ${trophy.earned ? "bg-emerald-400/[0.08] hover:bg-emerald-400/[0.12]" : "hover:bg-white/[0.04]"} sm:grid-cols-[4rem_1fr_auto] sm:items-center">
+      <div class="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-slate-950 p-1 ring-1 ${trophy.earned ? "ring-emerald-300/40" : "ring-white/10"}">
+        ${trophy.iconUrl ? `<img src="${escapeHtml(trophy.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
+      </div>
+      <div class="min-w-0">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <span class="truncate text-[15px] font-semibold ${trophy.earned ? "text-emerald-100" : "text-white"}">${escapeHtml(trophy.name || "Hidden Trophy")}</span>
+          ${trophy.hidden ? `<span class="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold uppercase app-muted">Secret</span>` : ""}
+        </div>
+        <div class="mt-1 text-sm app-muted">${escapeHtml(trophy.detail || "")}</div>
+        ${earnedDate ? `<div class="mt-1 text-xs text-emerald-300">Earned ${earnedDate}</div>` : ""}
+      </div>
+      <div class="flex items-center gap-3 sm:justify-end">
+        ${trophy.earned ? `<span class="text-xl text-emerald-300">✓</span>` : `<span class="text-xl app-faint">—</span>`}
+        ${trophyIcon(trophy.type, "h-7 w-7")}
+      </div>
+    </article>
+  `;
+}
+
+function renderTitleDetail(user, title, detail) {
+  const baseTrophies = detail.trophies.filter((trophy) => trophy.groupId === "default");
+  const dlcTrophies = detail.trophies.filter((trophy) => trophy.groupId !== "default");
+  const earnedBase = baseTrophies.filter((trophy) => trophy.earned).length;
+
+  titlesPanel.innerHTML = `
+    <section class="space-y-4">
+      <div class="app-panel overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-cyan-300/10 px-4 py-3">
+          <div class="min-w-0">
+            <div class="text-xs font-semibold uppercase tracking-wide app-faint">
+              <button class="text-cyan-200 hover:text-cyan-100" data-back-to-titles type="button">${escapeHtml(user.onlineId)}</button>
+              <span class="mx-2">›</span>
+              <span class="text-white">${escapeHtml(title.title || title.npwr)}</span>
+            </div>
+          </div>
+          <button class="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/[0.10]" data-back-to-titles type="button">Back to lists</button>
+        </div>
+        <div class="grid gap-4 p-4 lg:grid-cols-[1fr_20rem]">
+          <div>
+            <div class="mb-3 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+              <div class="h-14 w-14 overflow-hidden rounded-lg bg-slate-900">${user.avatarUrl ? `<img src="${escapeHtml(user.avatarUrl)}" class="h-full w-full object-cover" alt="" loading="lazy" />` : ""}</div>
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-semibold text-white">${escapeHtml(user.onlineId)}</div>
+                <div class="mt-1 text-xs app-muted">${format(detail.earned.total)} of ${format(detail.defined.total)} trophies earned</div>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-semibold text-white">${format(detail.progress)}%</div>
+                <div class="text-[10px] font-bold uppercase tracking-wide app-faint">Complete</div>
+              </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-white/10">
+              <div class="border-b border-white/10 bg-cyan-300/10 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-cyan-100">
+                ${escapeHtml(title.title || title.npwr)} Trophies
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="grid h-14 w-14 place-items-center overflow-hidden rounded bg-slate-950 p-1">
+                    ${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
+                  </div>
+                  <div>
+                    <div class="font-semibold text-white">Base Game</div>
+                    <div class="text-sm app-muted">${format(earnedBase)} of ${format(baseTrophies.length)} trophies</div>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-3 text-sm app-muted">${titleBreakdown(detail.earned)}</div>
+              </div>
+              <div>${detail.trophies.map(trophyRow).join("")}</div>
+              ${dlcTrophies.length ? `<div class="border-t border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-bold uppercase tracking-wide app-faint">${format(dlcTrophies.length)} DLC trophies included</div>` : ""}
+            </div>
+          </div>
+          ${titleCard(title, detail)}
+        </div>
+      </div>
+    </section>
+  `;
+
+  for (const button of titlesPanel.querySelectorAll("[data-back-to-titles]")) {
+    button.addEventListener("click", () => renderTitles(state.user, state.titles));
+  }
+  titlesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadTitleDetail(title) {
+  if (!state.user) return;
+  titlesPanel.innerHTML = `<div class="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm app-muted">Loading ${escapeHtml(title.title || title.npwr)} trophies...</div>`;
+  const response = await fetch(`/api/psn-user-title.php?accountId=${encodeURIComponent(state.user.accountId)}&npwr=${encodeURIComponent(title.npwr)}&service=${encodeURIComponent(title.service || "trophy2")}`);
+  const payload = await response.json();
+  if (!payload.ok) throw new Error(payload.error || "Could not load trophy list.");
+  renderTitleDetail(state.user, title, payload.title);
 }
 
 function renderProfile(user, titles) {
@@ -164,7 +301,7 @@ function renderTitles(user, titles) {
         </div>
         <div class="divide-y divide-white/10">
           ${titles.map((title) => `
-            <article class="flex gap-3 p-3 transition hover:bg-white/[0.04]">
+            <article class="flex cursor-pointer gap-3 p-3 transition hover:bg-white/[0.04]" data-title-detail="${escapeHtml(title.npwr)}">
               <div class="grid h-20 w-20 flex-shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-900 p-1 ring-1 ring-white/10">
                 ${title.iconUrl ? `<img src="${escapeHtml(title.iconUrl)}" class="max-h-full max-w-full object-contain" alt="" loading="lazy" />` : ""}
               </div>
@@ -206,6 +343,14 @@ function renderTitles(user, titles) {
       </aside>
     </section>
   `;
+
+  for (const item of titlesPanel.querySelectorAll("[data-title-detail]")) {
+    item.addEventListener("click", () => {
+      const title = titles.find((candidate) => candidate.npwr === item.dataset.titleDetail);
+      if (!title) return;
+      loadTitleDetail(title).catch((error) => renderMessage(titlesPanel, error.message || "Could not load trophy list.", true));
+    });
+  }
 }
 
 async function loadProfile(user) {
@@ -215,6 +360,8 @@ async function loadProfile(user) {
   const payload = await response.json();
   if (!payload.ok) throw new Error(payload.error || "Could not load trophy list.");
   const titles = payload.titles || [];
+  state.user = user;
+  state.titles = titles;
   renderProfile(user, titles);
   renderTitles(user, titles);
 }

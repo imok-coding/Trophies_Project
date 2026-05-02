@@ -245,3 +245,132 @@ function psn_user_trophy_titles(string $accountId, int $limit = 100): array {
 
   return array_slice($titles, 0, $limit);
 }
+
+function psn_trophy_count_total(array $counts): int {
+  $total = (int)($counts['total'] ?? 0);
+  if ($total > 0) return $total;
+  return (int)($counts['platinum'] ?? 0)
+    + (int)($counts['gold'] ?? 0)
+    + (int)($counts['silver'] ?? 0)
+    + (int)($counts['bronze'] ?? 0);
+}
+
+function psn_trophy_endpoint_get(string $url, string $accessToken): array {
+  $response = psn_http_request($url, 'GET', [
+    'Authorization' => 'Bearer ' . $accessToken,
+    'Content-Type' => 'application/json'
+  ]);
+
+  $data = json_decode($response['body'], true);
+  if (!is_array($data)) {
+    throw new RuntimeException('PSN trophy detail returned an invalid response.');
+  }
+
+  if (!empty($data['error'])) {
+    $message = is_array($data['error']) ? (string)($data['error']['message'] ?? json_encode($data['error'])) : (string)$data['error'];
+    throw new RuntimeException($message);
+  }
+
+  return $data;
+}
+
+function psn_user_title_trophies(string $accountId, string $npwr, string $service = 'trophy2'): array {
+  if (!preg_match('/^(me|\d{6,25})$/', $accountId)) {
+    throw new RuntimeException('Invalid PSN account ID.');
+  }
+  if (!preg_match('/^NPWR\d{5}_00$/', $npwr)) {
+    throw new RuntimeException('Invalid NPWR.');
+  }
+  if (!in_array($service, ['trophy', 'trophy2'], true)) {
+    $service = 'trophy2';
+  }
+
+  $accessToken = psn_access_token();
+  $query = http_build_query(['npServiceName' => $service]);
+  $titleUrl = 'https://m.np.playstation.com/api/trophy/v1/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups/all/trophies?' . $query;
+  $userUrl = 'https://m.np.playstation.com/api/trophy/v1/users/' . rawurlencode($accountId) . '/npCommunicationIds/' . rawurlencode($npwr) . '/trophyGroups/all/trophies?' . $query;
+
+  $titleData = psn_trophy_endpoint_get($titleUrl, $accessToken);
+  $userData = psn_trophy_endpoint_get($userUrl, $accessToken);
+
+  $userById = [];
+  foreach (($userData['trophies'] ?? []) as $trophy) {
+    $userById[(string)($trophy['trophyId'] ?? '')] = $trophy;
+  }
+
+  $defined = $titleData['definedTrophies'] ?? [];
+  $earned = $userData['earnedTrophies'] ?? [];
+  $earnedTotal = psn_trophy_count_total($earned);
+  $definedTotal = psn_trophy_count_total($defined);
+
+  $trophies = [];
+  foreach (($titleData['trophies'] ?? []) as $trophy) {
+    $id = (string)($trophy['trophyId'] ?? '');
+    $userTrophy = $userById[$id] ?? [];
+    $earnedFlag = (bool)($userTrophy['earned'] ?? false);
+    $earnedDate = (string)($userTrophy['earnedDateTime'] ?? '');
+    $hidden = (bool)($trophy['trophyHidden'] ?? $userTrophy['trophyHidden'] ?? false);
+    $name = (string)($trophy['trophyName'] ?? $userTrophy['trophyName'] ?? ($hidden ? 'Hidden Trophy' : ''));
+    $detail = (string)($trophy['trophyDetail'] ?? $userTrophy['trophyDetail'] ?? '');
+
+    $trophies[] = [
+      'id' => (int)($trophy['trophyId'] ?? $userTrophy['trophyId'] ?? 0),
+      'groupId' => (string)($trophy['trophyGroupId'] ?? $userTrophy['trophyGroupId'] ?? 'default'),
+      'name' => $name,
+      'detail' => $detail,
+      'type' => (string)($trophy['trophyType'] ?? $userTrophy['trophyType'] ?? 'bronze'),
+      'hidden' => $hidden,
+      'iconUrl' => (string)($trophy['trophyIconUrl'] ?? $userTrophy['trophyIconUrl'] ?? ''),
+      'earned' => $earnedFlag,
+      'earnedDateTime' => $earnedDate
+    ];
+  }
+
+  usort($trophies, fn($left, $right) => ($left['id'] <=> $right['id']));
+
+  $calculatedDefined = ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0];
+  $calculatedEarned = ['platinum' => 0, 'gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0];
+  foreach ($trophies as $trophy) {
+    $type = (string)$trophy['type'];
+    if (isset($calculatedDefined[$type])) {
+      $calculatedDefined[$type]++;
+    }
+    $calculatedDefined['total']++;
+    if ((bool)$trophy['earned']) {
+      if (isset($calculatedEarned[$type])) {
+        $calculatedEarned[$type]++;
+      }
+      $calculatedEarned['total']++;
+    }
+  }
+
+  if ($definedTotal === 0) {
+    $defined = $calculatedDefined;
+    $definedTotal = $calculatedDefined['total'];
+  }
+  if ($earnedTotal === 0) {
+    $earned = $calculatedEarned;
+    $earnedTotal = $calculatedEarned['total'];
+  }
+
+  return [
+    'npwr' => $npwr,
+    'service' => $service,
+    'progress' => $definedTotal > 0 ? (int)round(($earnedTotal / $definedTotal) * 100) : 0,
+    'defined' => [
+      'platinum' => (int)($defined['platinum'] ?? $calculatedDefined['platinum']),
+      'gold' => (int)($defined['gold'] ?? $calculatedDefined['gold']),
+      'silver' => (int)($defined['silver'] ?? $calculatedDefined['silver']),
+      'bronze' => (int)($defined['bronze'] ?? $calculatedDefined['bronze']),
+      'total' => $definedTotal
+    ],
+    'earned' => [
+      'platinum' => (int)($earned['platinum'] ?? $calculatedEarned['platinum']),
+      'gold' => (int)($earned['gold'] ?? $calculatedEarned['gold']),
+      'silver' => (int)($earned['silver'] ?? $calculatedEarned['silver']),
+      'bronze' => (int)($earned['bronze'] ?? $calculatedEarned['bronze']),
+      'total' => $earnedTotal
+    ],
+    'trophies' => $trophies
+  ];
+}
