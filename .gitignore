@@ -6,3 +6,4 @@ site/includes/config.local.php
 .env.*
 /package-lock.json
 *.zip
+/gh-pages-dist/
