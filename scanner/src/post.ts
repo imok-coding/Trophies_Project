@@ -75,7 +75,8 @@ export type IngestResponse = {
 
 export async function postIngest(url: string, secret: string, payload: unknown): Promise<IngestResponse> {
   const raw = JSON.stringify(payload);
-  const sig = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+  const signingSecret = secret.trim();
+  const sig = "sha256=" + crypto.createHmac("sha256", signingSecret).update(raw).digest("hex");
   const cookie = await getAntiBotCookie(url);
 
   const res = await fetchWithRetry(url, {
